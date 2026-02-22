@@ -878,10 +878,20 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, modalOpen }) {
         if (item.type === "add") setAddingTask(item.phaseId);
       } else if (e.key === "Escape" || e.key === "b") {
         e.preventDefault();
-        onBack();
+        if (confirmDelete) setConfirmDelete(false);
+        else onBack();
       } else if (e.key === "e") {
         e.preventDefault();
         onEdit();
+      } else if (e.key === "d") {
+        e.preventDefault();
+        setConfirmDelete(true);
+      } else if (e.key === "y" && confirmDelete) {
+        e.preventDefault();
+        onDelete();
+      } else if (e.key === "n" && confirmDelete) {
+        e.preventDefault();
+        setConfirmDelete(false);
       } else if (e.key === "g") {
         setFocusIdx(0);
       } else if (e.key === "G") {
@@ -890,7 +900,7 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, modalOpen }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [allItems, focusIdx, onBack, onEdit, modalOpen]);
+  }, [allItems, focusIdx, onBack, onEdit, onDelete, modalOpen, confirmDelete]);
 
   // Auto-scroll focused task into view
   const focusRef = useRef(null);
@@ -1024,10 +1034,14 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, modalOpen }) {
           ~{checklist.total_days} DAYS TOTAL · SOLO DEV &nbsp;&nbsp;&nbsp; {checklist.title.toUpperCase()} V1.0
         </div>
       )}
-      <KeyHintBar hints={[
+      <KeyHintBar hints={confirmDelete ? [
+        { key: "y", label: "confirm delete" },
+        { key: "n / Esc", label: "cancel" },
+      ] : [
         { key: "j/k", label: "move" },
         { key: "x / Enter", label: "toggle" },
         { key: "e", label: "edit" },
+        { key: "d", label: "delete" },
         { key: "b / Esc", label: "back" },
         { key: "g/G", label: "top/bottom" },
       ]} />
