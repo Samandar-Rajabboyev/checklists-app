@@ -1,90 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const SEED_DATA = {
-  id: "flashcards-app-v1",
-  title: "FlashCards App",
-  description: "Simple, easy-to-use flashcard app with pre-loaded decks.",
-  created_at: "2026-02-22",
-  total_days: 12,
-  color: "#D4522A",
-  emoji: "🃏",
-  phases: [
-    {
-      id: "phase-0",
-      label: "Phase 0",
-      title: "Setup",
-      duration: "1 day",
-      tasks: [
-        { id: "p0-t1", text: "Initialize project (Flutter or React Native)", done: false },
-        { id: "p0-t2", text: "Set up local storage / DB (Hive or SQLite)", done: false },
-        { id: "p0-t3", text: "Define design tokens — colors, type, spacing", done: false },
-        { id: "p0-t4", text: "Create base navigation (bottom bar or tabs)", done: false }
-      ]
-    },
-    {
-      id: "phase-1",
-      label: "Phase 1",
-      title: "Pre-loaded Decks",
-      duration: "2 days",
-      tasks: [
-        { id: "p1-t1", text: "Define Card & Deck data models", done: false },
-        { id: "p1-t2", text: "Build seed data — Flags deck", done: false, tag: "Flags" },
-        { id: "p1-t3", text: "Build seed data — World Capitals deck", done: false, tag: "World Capitals" },
-        { id: "p1-t4", text: "Build seed data — Simple Math deck", done: false, tag: "Simple Math" },
-        { id: "p1-t5", text: "Build seed data — Interesting Facts deck", done: false, tag: "Interesting Facts" },
-        { id: "p1-t6", text: "Auto-seed decks on first launch", done: false }
-      ]
-    },
-    {
-      id: "phase-2",
-      label: "Phase 2",
-      title: "Core Study Screen",
-      duration: "3 days",
-      tasks: [
-        { id: "p2-t1", text: "Deck list home screen", done: false },
-        { id: "p2-t2", text: "Flashcard flip animation (tap to reveal)", done: false },
-        { id: "p2-t3", text: "Swipe right = know it · Swipe left = review again", done: false },
-        { id: "p2-t4", text: "Session complete screen with score summary", done: false },
-        { id: "p2-t5", text: "Shuffle & restart deck controls", done: false }
-      ]
-    },
-    {
-      id: "phase-3",
-      label: "Phase 3",
-      title: "Custom Decks",
-      duration: "2 days",
-      tasks: [
-        { id: "p3-t1", text: "Create new deck flow (name + emoji/color)", done: false },
-        { id: "p3-t2", text: "Add / edit / delete cards in a deck", done: false },
-        { id: "p3-t3", text: "Delete decks (protect pre-loaded ones)", done: false }
-      ]
-    },
-    {
-      id: "phase-4",
-      label: "Phase 4",
-      title: "Polish",
-      duration: "2 days",
-      tasks: [
-        { id: "p4-t1", text: "Empty states for all screens", done: false },
-        { id: "p4-t2", text: "Haptic feedback on swipe actions", done: false },
-        { id: "p4-t3", text: "Dark mode support", done: false },
-        { id: "p4-t4", text: "Onboarding tooltip or quick tutorial card", done: false },
-        { id: "p4-t5", text: "App icon + splash screen", done: false }
-      ]
-    },
-    {
-      id: "phase-5",
-      label: "Phase 5",
-      title: "Launch",
-      duration: "2 days",
-      tasks: [
-        { id: "p5-t1", text: "App Store screenshots + description", done: false },
-        { id: "p5-t2", text: "Google Play listing assets", done: false },
-        { id: "p5-t3", text: "Submit for review", done: false }
-      ]
-    }
-  ]
-};
 
 const ACCENT_COLORS = ["#D4522A", "#2A6DD4", "#2AA65A", "#8B2AD4", "#D4A22A"];
 
@@ -106,7 +21,7 @@ const loadData = () => {
     const raw = localStorage.getItem("checklists-v1");
     if (raw) return JSON.parse(raw);
   } catch {}
-  return [SEED_DATA];
+  return [];
 };
 
 const saveData = (data) => {
@@ -766,8 +681,37 @@ function Modal({ initial, onSave, onClose }) {
 
 // ──── Home Screen ─────────────────────────────────────────────────────────────
 
-function Home({ checklists, onSelect, onNew }) {
+function Home({ checklists, onSelect, onNew, onImport }) {
   const [focusIdx, setFocusIdx] = useState(0);
+  const [importError, setImportError] = useState("");
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        // Accept either a single checklist object or an array
+        const items = Array.isArray(data) ? data : [data];
+        // Validate minimally: must have title and phases
+        for (const item of items) {
+          if (!item.title || !Array.isArray(item.phases)) throw new Error("Invalid format");
+          // Ensure each item has an id
+          if (!item.id) item.id = uid();
+        }
+        onImport(items);
+        setImportError("");
+      } catch {
+        setImportError("Invalid JSON — must have title and phases fields.");
+        setTimeout(() => setImportError(""), 3000);
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-imported
+    e.target.value = "";
+  };
 
   useEffect(() => {
     const handler = (e) => {
@@ -790,6 +734,9 @@ function Home({ checklists, onSelect, onNew }) {
       } else if (e.key === "n") {
         e.preventDefault();
         onNew();
+      } else if (e.key === "i") {
+        e.preventDefault();
+        fileInputRef.current?.click();
       } else if (e.key === "g") {
         setFocusIdx(0);
       } else if (e.key === "G") {
@@ -804,14 +751,20 @@ function Home({ checklists, onSelect, onNew }) {
     { key: "j/k", label: "navigate" },
     { key: "Enter", label: "open" },
     { key: "n", label: "new" },
+    { key: "i", label: "import json" },
     { key: "g/G", label: "top/bottom" },
   ];
 
   return (
     <div className="app">
+      <input ref={fileInputRef} type="file" accept=".json,application/json" style={{ display: "none" }} onChange={handleFileChange} />
       <div className="header">
         <h1 className="serif">Checklists</h1>
-        <button className="btn-new" onClick={onNew}>+ New</button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {importError && <span style={{ fontSize: "0.7rem", color: "#D4522A" }}>{importError}</span>}
+          <button className="btn-new" style={{ background: "none", border: "1px solid #E2DDD4", color: "#8C8579" }} onClick={() => fileInputRef.current?.click()}>↑ Import</button>
+          <button className="btn-new" onClick={onNew}>+ New</button>
+        </div>
       </div>
       {checklists.length === 0 ? (
         <div className="empty">No checklists yet. Press <kbd style={{background:"#E2DDD4",padding:"1px 5px",fontFamily:"DM Mono,monospace"}}>n</kbd> to create one.</div>
@@ -1065,6 +1018,13 @@ export default function App() {
   const handleSelect = (id) => { setActiveId(id); setView("detail"); };
   const handleBack = () => { setView("home"); setActiveId(null); };
 
+  const handleImport = (items) => {
+    // Avoid duplicates by id — if id already exists, assign a new one
+    const existing = new Set(checklists.map(c => c.id));
+    const deduped = items.map(item => existing.has(item.id) ? { ...item, id: uid() } : item);
+    persist([...checklists, ...deduped]);
+  };
+
   const handleSave = (data) => {
     if (modal === "new") {
       persist([...checklists, data]);
@@ -1091,7 +1051,7 @@ export default function App() {
     <>
       <style>{styles}</style>
       {view === "home" ? (
-        <Home checklists={checklists} onSelect={handleSelect} onNew={() => setModal("new")} />
+        <Home checklists={checklists} onSelect={handleSelect} onNew={() => setModal("new")} onImport={handleImport} />
       ) : active ? (
         <Detail
           checklist={active}
