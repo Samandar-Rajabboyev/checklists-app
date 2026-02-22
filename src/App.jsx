@@ -478,14 +478,7 @@ const styles = `
   }
   .small-link:hover { color: #1A1814; }
 
-  .modal-footer {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid #E2DDD4;
-  }
+  /* modal-footer defined in keyhints section */
 
   .btn-save {
     background: #1A1814;
@@ -551,6 +544,36 @@ const styles = `
   .keyhint-mode { color: #D4522A; font-size: 0.68rem; letter-spacing: 0.08em; margin-right: 4px; }
   .keyhint-sep { color: #3A3530; user-select: none; }
   body { padding-bottom: 34px; }
+
+  /* Modal keyhints inside footer */
+  .modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #E2DDD4;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .modal-keyhints {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-size: 0.62rem;
+    color: #8C8579;
+    font-family: 'DM Mono', monospace;
+  }
+  .modal-keyhints kbd {
+    color: #1A1814;
+    background: #E8E3D8;
+    padding: 1px 5px;
+    border: 1px solid #C8C3BA;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    margin-right: 3px;
+  }
 `;
 
 
@@ -574,12 +597,6 @@ function KeyHintBar({ hints }) {
 // ──── Modal Component ────────────────────────────────────────────────────────
 
 function Modal({ initial, onSave, onClose }) {
-  useEffect(() => {
-    const handler = (e) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
-
   const [emoji, setEmoji] = useState(initial?.emoji || "📋");
   const [title, setTitle] = useState(initial?.title || "");
   const [desc, setDesc] = useState(initial?.description || "");
@@ -589,18 +606,36 @@ function Modal({ initial, onSave, onClose }) {
   );
   const [phases, setPhases] = useState(
     initial?.phases?.map(p => ({
-      id: p.id,
-      label: p.label,
-      title: p.title,
-      duration: p.duration,
+      id: p.id, label: p.label, title: p.title, duration: p.duration,
       tasks: p.tasks.map(t => ({ id: t.id, text: t.text, tag: t.tag || "", done: t.done }))
     })) || [{ id: uid(), label: "Phase 0", title: "", duration: "", tasks: [{ id: uid(), text: "", tag: "", done: false }] }]
   );
 
-  const addPhase = () => setPhases(p => [...p, { id: uid(), label: `Phase ${p.length}`, title: "", duration: "", tasks: [{ id: uid(), text: "", tag: "", done: false }] }]);
+  // Track which phase input is currently focused so Ctrl+T adds task to it
+  const lastFocusedPhaseId = useRef(phases[phases.length - 1]?.id);
+
+  const addPhase = () => {
+    const newPhase = { id: uid(), label: `Phase ${phases.length}`, title: "", duration: "", tasks: [{ id: uid(), text: "", tag: "", done: false }] };
+    setPhases(p => [...p, newPhase]);
+    lastFocusedPhaseId.current = newPhase.id;
+    // Focus the new phase label input after render
+    setTimeout(() => {
+      const inputs = document.querySelectorAll(".modal-phase:last-child .modal-phase-header input");
+      if (inputs[0]) inputs[0].focus();
+    }, 30);
+  };
   const removePhase = (pid) => setPhases(p => p.filter(ph => ph.id !== pid));
   const updatePhaseField = (pid, field, val) => setPhases(p => p.map(ph => ph.id === pid ? { ...ph, [field]: val } : ph));
-  const addTask = (pid) => setPhases(p => p.map(ph => ph.id === pid ? { ...ph, tasks: [...ph.tasks, { id: uid(), text: "", tag: "", done: false }] } : ph));
+  const addTask = (pid) => {
+    setPhases(p => p.map(ph => ph.id === pid ? { ...ph, tasks: [...ph.tasks, { id: uid(), text: "", tag: "", done: false }] } : ph));
+    setTimeout(() => {
+      const phase = document.querySelector(`.modal-phase[data-id="${pid}"]`);
+      if (phase) {
+        const inputs = phase.querySelectorAll(".phase-task-row input");
+        if (inputs[inputs.length - 1]) inputs[inputs.length - 1].focus();
+      }
+    }, 30);
+  };
   const removeTask = (pid, tid) => setPhases(p => p.map(ph => ph.id === pid ? { ...ph, tasks: ph.tasks.filter(t => t.id !== tid) } : ph));
   const updateTask = (pid, tid, val) => setPhases(p => p.map(ph => ph.id === pid ? { ...ph, tasks: ph.tasks.map(t => t.id === tid ? { ...t, text: val } : t) } : ph));
 
@@ -619,6 +654,31 @@ function Modal({ initial, onSave, onClose }) {
     });
   };
 
+  // Keyboard shortcuts for the modal
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleSave(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === "p") { e.preventDefault(); addPhase(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === "t") {
+        e.preventDefault();
+        const pid = lastFocusedPhaseId.current;
+        if (pid) addTask(pid);
+        return;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, phases]);
+
+  const modalHints = [
+    { key: "Tab", label: "next field" },
+    { key: "Ctrl+Enter", label: "save" },
+    { key: "Ctrl+P", label: "add phase" },
+    { key: "Ctrl+T", label: "add task" },
+    { key: "Esc", label: "close" },
+  ];
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
@@ -631,7 +691,7 @@ function Modal({ initial, onSave, onClose }) {
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label>Title</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="My Checklist" />
+            <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="My Checklist" />
           </div>
         </div>
 
@@ -658,18 +718,26 @@ function Modal({ initial, onSave, onClose }) {
 
         <div className="modal-phases">
           <div style={{ fontSize: "0.68rem", color: "#8C8579", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Phases</div>
-          {phases.map((ph, pi) => (
-            <div className="modal-phase" key={ph.id}>
+          {phases.map((ph) => (
+            <div className="modal-phase" key={ph.id} data-id={ph.id}>
               <div className="modal-phase-header">
-                <input value={ph.label} onChange={e => updatePhaseField(ph.id, "label", e.target.value)} placeholder="Phase 0" />
-                <input value={ph.title} onChange={e => updatePhaseField(ph.id, "title", e.target.value)} placeholder="Title" />
-                <input value={ph.duration} onChange={e => updatePhaseField(ph.id, "duration", e.target.value)} placeholder="2 days" />
+                <input value={ph.label} onChange={e => updatePhaseField(ph.id, "label", e.target.value)} placeholder="Phase 0"
+                  onFocus={() => { lastFocusedPhaseId.current = ph.id; }} />
+                <input value={ph.title} onChange={e => updatePhaseField(ph.id, "title", e.target.value)} placeholder="Title"
+                  onFocus={() => { lastFocusedPhaseId.current = ph.id; }} />
+                <input value={ph.duration} onChange={e => updatePhaseField(ph.id, "duration", e.target.value)} placeholder="2 days"
+                  onFocus={() => { lastFocusedPhaseId.current = ph.id; }} />
                 <button className="remove-btn" onClick={() => removePhase(ph.id)}>×</button>
               </div>
               <div className="phase-tasks">
                 {ph.tasks.map(t => (
                   <div className="phase-task-row" key={t.id}>
-                    <input value={t.text} onChange={e => updateTask(ph.id, t.id, e.target.value)} placeholder="Task description" />
+                    <input value={t.text} onChange={e => updateTask(ph.id, t.id, e.target.value)} placeholder="Task description"
+                      onFocus={() => { lastFocusedPhaseId.current = ph.id; }}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") { e.preventDefault(); addTask(ph.id); }
+                        if (e.key === "Backspace" && t.text === "") { e.preventDefault(); removeTask(ph.id, t.id); }
+                      }} />
                     <button className="remove-btn" onClick={() => removeTask(ph.id, t.id)}>×</button>
                   </div>
                 ))}
@@ -681,8 +749,15 @@ function Modal({ initial, onSave, onClose }) {
         </div>
 
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="btn-save" onClick={handleSave}>Save</button>
+          <div className="modal-keyhints">
+            {modalHints.map((h, i) => (
+              <span key={i}><kbd>{h.key}</kbd>{h.label}</span>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button className="btn-cancel" onClick={onClose}>Cancel</button>
+            <button className="btn-save" onClick={handleSave}>Save</button>
+          </div>
         </div>
       </div>
     </div>
@@ -772,30 +847,35 @@ function Home({ checklists, onSelect, onNew }) {
 
 // ──── Detail Screen ───────────────────────────────────────────────────────────
 
-function Detail({ checklist, onChange, onBack, onEdit, onDelete }) {
+function Detail({ checklist, onChange, onBack, onEdit, onDelete, modalOpen }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addingTask, setAddingTask] = useState(null); // phaseId
   const [newTaskText, setNewTaskText] = useState("");
 
-  // Build flat task list for keyboard nav
-  const allTasks = checklist.phases.flatMap(ph =>
-    ph.tasks.map(t => ({ phaseId: ph.id, taskId: t.id }))
-  );
+  // Build flat nav list: tasks + one "add" slot per phase
+  const allItems = checklist.phases.flatMap(ph => [
+    ...ph.tasks.map(t => ({ type: "task", phaseId: ph.id, taskId: t.id })),
+    { type: "add", phaseId: ph.id },
+  ]);
   const [focusIdx, setFocusIdx] = useState(0);
 
   useEffect(() => {
     const handler = (e) => {
+      // Don't intercept when modal is open or typing in an input
+      if (modalOpen) return;
       if (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA") return;
       if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
-        setFocusIdx(i => Math.min(i + 1, allTasks.length - 1));
+        setFocusIdx(i => Math.min(i + 1, allItems.length - 1));
       } else if (e.key === "k" || e.key === "ArrowUp") {
         e.preventDefault();
         setFocusIdx(i => Math.max(i - 1, 0));
       } else if (e.key === "Enter" || e.key === " " || e.key === "x") {
         e.preventDefault();
-        const t = allTasks[focusIdx];
-        if (t) toggleTask(t.phaseId, t.taskId);
+        const item = allItems[focusIdx];
+        if (!item) return;
+        if (item.type === "task") toggleTask(item.phaseId, item.taskId);
+        if (item.type === "add") setAddingTask(item.phaseId);
       } else if (e.key === "Escape" || e.key === "b") {
         e.preventDefault();
         onBack();
@@ -805,12 +885,12 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete }) {
       } else if (e.key === "g") {
         setFocusIdx(0);
       } else if (e.key === "G") {
-        setFocusIdx(allTasks.length - 1);
+        setFocusIdx(allItems.length - 1);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [allTasks, focusIdx, onBack, onEdit]);
+  }, [allItems, focusIdx, onBack, onEdit, modalOpen]);
 
   // Auto-scroll focused task into view
   const focusRef = useRef(null);
@@ -889,23 +969,23 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete }) {
           </div>
           <div className="tasks-list">
             {ph.tasks.map(task => {
-              const flatIdx = allTasks.findIndex(t => t.taskId === task.id);
+              const flatIdx = allItems.findIndex(it => it.type === "task" && it.taskId === task.id);
               const isFocused = flatIdx === focusIdx;
               return (
-              <div
-                className={`task-row${isFocused ? " focused" : ""}`}
-                key={task.id}
-                ref={isFocused ? focusRef : null}
-                onClick={() => { setFocusIdx(flatIdx); toggleTask(ph.id, task.id); }}
-                onMouseEnter={() => setFocusIdx(flatIdx)}
-              >
-                <div className={`checkbox${task.done ? " checked" : ""}`}>
-                  {task.done && "✓"}
+                <div
+                  className={`task-row${isFocused ? " focused" : ""}`}
+                  key={task.id}
+                  ref={isFocused ? focusRef : null}
+                  onClick={() => { setFocusIdx(flatIdx); toggleTask(ph.id, task.id); }}
+                  onMouseEnter={() => setFocusIdx(flatIdx)}
+                >
+                  <div className={`checkbox${task.done ? " checked" : ""}`}>
+                    {task.done && "✓"}
+                  </div>
+                  <span className={`task-text${task.done ? " done" : ""}`}>{task.text}</span>
+                  {task.tag && <span className="tag">{task.tag}</span>}
                 </div>
-                <span className={`task-text${task.done ? " done" : ""}`}>{task.text}</span>
-                {task.tag && <span className="tag">{task.tag}</span>}
-              </div>
-            );
+              );
             })}
             {addingTask === ph.id ? (
               <div className="add-task-row">
@@ -922,9 +1002,19 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete }) {
                   onBlur={() => commitNewTask(ph.id)}
                 />
               </div>
-            ) : (
-              <button className="add-task-link" onClick={() => setAddingTask(ph.id)}>+ add task</button>
-            )}
+            ) : (() => {
+              const addIdx = allItems.findIndex(it => it.type === "add" && it.phaseId === ph.id);
+              const isAddFocused = addIdx === focusIdx;
+              return (
+                <button
+                  className="add-task-link"
+                  ref={isAddFocused ? focusRef : null}
+                  style={isAddFocused ? { color: "#D4522A", outline: "2px solid #D4522A", outlineOffset: "-2px" } : {}}
+                  onClick={() => { setFocusIdx(addIdx); setAddingTask(ph.id); }}
+                  onMouseEnter={() => setFocusIdx(addIdx)}
+                >+ add task</button>
+              );
+            })()}
           </div>
         </div>
       ))}
@@ -995,6 +1085,7 @@ export default function App() {
           onBack={handleBack}
           onEdit={() => setModal("edit")}
           onDelete={handleDelete}
+          modalOpen={!!modal}
         />
       ) : null}
 
