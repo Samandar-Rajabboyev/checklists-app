@@ -2,6 +2,7 @@
 
 A personal project checklist web app. Built with React + Vite. No backend — all data lives in localStorage.
 
+
 ## Local Development
 
 ```bash
