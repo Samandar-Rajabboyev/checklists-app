@@ -177,6 +177,16 @@ const styles = `
   .tag { font-size:0.58rem; letter-spacing:0.05em; padding:1px 5px; border:1px solid #E2DDD4; color:#8C8579; white-space:nowrap; text-transform:uppercase; }
 
 
+  .task-row[draggable="true"] { cursor: grab; }
+  .task-row[draggable="true"]:active { cursor: grabbing; }
+  .task-row.drag-over { border-top: 2px solid #D4522A; }
+  .task-row.dragging { opacity: 0.35; }
+  .drag-handle { color: #C8C3BA; font-size: 0.7rem; cursor: grab; padding: 0 4px 0 0; flex-shrink:0; user-select:none; line-height:1; }
+  .drag-handle:hover { color: #8C8579; }
+  .phase-drop-zone { height: 6px; transition: height 0.1s; }
+  .phase-drop-zone.drag-over { height: 20px; background: #FAF6EE; border: 1px dashed #D4522A; }
+  .task-row.move-mode { outline: 2px solid #D4A22A; outline-offset: -2px; background: #FAF6EE; }
+
   .add-task-row { padding:8px 13px; border-top:1px solid #E2DDD4; background:#FFFDF7; }
   .add-task-input { width:100%; border:none; background:transparent; font-family:'DM Mono',monospace; font-size:0.75rem; color:#1A1814; outline:none; }
   .add-task-input::placeholder { color:#B8B2A8; }
@@ -266,7 +276,7 @@ function HelpOverlay({ onClose }) {
       ["Tab", "cycle filter (active / all / archived)"], ["?", "this help"],
     ]},
     { title: "Detail", rows: [
-      ["j/k", "move between tasks"], ["x · Enter", "toggle task done"],
+      ["j/k", "move between tasks"], ["J/K", "reorder task up/down"], ["H/L", "move task to prev/next phase"], ["x · Enter", "toggle task done"],
       ["e", "edit checklist"], ["a", "archive / unarchive"],
       ["P", "toggle whole phase done"], ["E", "export JSON"], ["d", "delete (then y / n)"],
       ["b · Esc", "go back"], ["g / G", "jump top / bottom"], ["?", "this help"],
@@ -613,7 +623,13 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
   const pct = total ? (done/total)*100 : 0;
 
   useEffect(() => {
-    if (prevDone.current !== null && prevDone.current < total && done === total && total > 0) setShowConfetti(true);
+    if (prevDone.current !== null && prevDone.current < total && done === total && total > 0) {
+      setShowConfetti(true);
+      // Haptic feedback — supported on iOS Safari and Android, silently ignored elsewhere
+      if (navigator.vibrate) {
+        navigator.vibrate([80, 60, 80, 60, 120]);
+      }
+    }
     prevDone.current = done;
   }, [done, total]);
 
@@ -640,6 +656,51 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
       ...ph, tasks: ph.tasks.map(t => ({...t, done: !allDone}))
     })});
   };
+
+  // ── Move task: within phase (up/down) or across phases (prev/next) ──
+  const moveTask = (taskId, fromPhaseId, dir) => {
+    const phases = checklist.phases;
+    const phaseIdx = phases.findIndex(p => p.id === fromPhaseId);
+    const phase = phases[phaseIdx];
+    const taskIdx = phase.tasks.findIndex(t => t.id === taskId);
+    const task = phase.tasks[taskIdx];
+
+    let newPhases;
+    if (dir === "up" || dir === "down") {
+      const newIdx = dir === "up" ? taskIdx - 1 : taskIdx + 1;
+      if (newIdx < 0 || newIdx >= phase.tasks.length) return;
+      const tasks = [...phase.tasks];
+      tasks.splice(taskIdx, 1);
+      tasks.splice(newIdx, 0, task);
+      newPhases = phases.map(p => p.id !== fromPhaseId ? p : {...p, tasks});
+    } else {
+      // Move to prev/next phase
+      const toPhaseIdx = dir === "left" ? phaseIdx - 1 : phaseIdx + 1;
+      if (toPhaseIdx < 0 || toPhaseIdx >= phases.length) return;
+      const toPhase = phases[toPhaseIdx];
+      newPhases = phases.map((p, i) => {
+        if (p.id === fromPhaseId) return {...p, tasks: p.tasks.filter(t => t.id !== taskId)};
+        if (i === toPhaseIdx) return {...p, tasks: dir === "left" ? [...p.tasks, task] : [task, ...p.tasks]};
+        return p;
+      });
+    }
+    onChange({...checklist, phases: newPhases});
+
+    // After move, update focusIdx to follow the task
+    setTimeout(() => {
+      const newAllItems = newPhases.flatMap(ph => [
+        ...ph.tasks.map(t => ({type:"task", phaseId:ph.id, taskId:t.id})),
+        {type:"add", phaseId:ph.id},
+      ]);
+      const newIdx = newAllItems.findIndex(it => it.type==="task" && it.taskId===taskId);
+      if (newIdx !== -1) setFocusIdx(newIdx);
+    }, 0);
+  };
+
+  // ── Drag state ──
+  const dragTask = useRef(null); // {taskId, phaseId}
+  const [dragOver, setDragOver] = useState(null); // {taskId} or {phaseId, end:true}
+  const [moveMode, setMoveMode] = useState(false);
 
 
 
@@ -669,6 +730,10 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
       else if (e.key==="y"&&confirmDelete) { e.preventDefault(); onDelete(); }
       else if (e.key==="n"&&confirmDelete) { e.preventDefault(); setConfirmDelete(false); }
       else if (e.key==="P"&&item) { e.preventDefault(); togglePhase(item.phaseId); }
+      else if (e.key==="J"&&item?.type==="task") { e.preventDefault(); moveTask(item.taskId,item.phaseId,"down"); }
+      else if (e.key==="K"&&item?.type==="task") { e.preventDefault(); moveTask(item.taskId,item.phaseId,"up"); }
+      else if (e.key==="H"&&item?.type==="task") { e.preventDefault(); moveTask(item.taskId,item.phaseId,"left"); }
+      else if (e.key==="L"&&item?.type==="task") { e.preventDefault(); moveTask(item.taskId,item.phaseId,"right"); }
       else if (e.key==="a") { e.preventDefault(); onArchive(); }
       else if (e.key==="E") { e.preventDefault(); onExport(); }
       else if (e.key==="g") setFocusIdx(0);
@@ -722,28 +787,82 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
             {ph.tasks.map(task => {
               const flatIdx = allItems.findIndex(it=>it.type==="task"&&it.taskId===task.id);
               const isFocused = flatIdx===focusIdx;
+              const isDragOver = dragOver?.taskId === task.id;
+              const isDragging = dragTask.current?.taskId === task.id;
               return (
-                <div key={task.id}
-                  className={`task-row${isFocused?" focused":""}`}
-                  ref={isFocused?focusRef:null}
-                  onMouseEnter={()=>setFocusIdx(flatIdx)}
-                >
-                  <div className="task-row-main">
-                    <div className={`checkbox${task.done?" checked":""}`}
-                      onClick={e=>{e.stopPropagation();setFocusIdx(flatIdx);toggleTask(ph.id,task.id);}}>
-                      {task.done&&"✓"}
-                    </div>
-                    <div className="task-body">
-                      <span className={`task-text${task.done?" done":""}`}
-                        onClick={()=>{setFocusIdx(flatIdx);toggleTask(ph.id,task.id);}}>
-                        {task.text}
-                      </span>
-                      {task.tag && <span className="tag" style={{marginLeft:8}}>{task.tag}</span>}
+                <div key={task.id}>
+                  {/* Drop zone above each task */}
+                  <div
+                    className={`phase-drop-zone${isDragOver?" drag-over":""}`}
+                    onDragOver={e=>{e.preventDefault();setDragOver({taskId:task.id});}}
+                    onDragLeave={()=>setDragOver(null)}
+                    onDrop={e=>{
+                      e.preventDefault();
+                      if (!dragTask.current) return;
+                      const {taskId:srcId, phaseId:srcPhase} = dragTask.current;
+                      if (srcId===task.id) { setDragOver(null); return; }
+                      // Build new phases with task moved before this task
+                      const srcPh = checklist.phases.find(p=>p.id===srcPhase);
+                      const movingTask = srcPh.tasks.find(t=>t.id===srcId);
+                      let newPhases = checklist.phases.map(p => p.id===srcPhase ? {...p, tasks:p.tasks.filter(t=>t.id!==srcId)} : p);
+                      newPhases = newPhases.map(p => p.id!==ph.id ? p : {
+                        ...p, tasks: (() => {
+                          const arr = [...p.tasks];
+                          const insertIdx = arr.findIndex(t=>t.id===task.id);
+                          arr.splice(insertIdx, 0, movingTask);
+                          return arr;
+                        })()
+                      });
+                      onChange({...checklist, phases: newPhases});
+                      dragTask.current = null; setDragOver(null);
+                    }}
+                  />
+                  <div
+                    className={`task-row${isFocused?" focused":""}${isDragging?" dragging":""}`}
+                    ref={isFocused?focusRef:null}
+                    draggable="true"
+                    onMouseEnter={()=>setFocusIdx(flatIdx)}
+                    onDragStart={e=>{
+                      dragTask.current={taskId:task.id,phaseId:ph.id};
+                      e.dataTransfer.effectAllowed="move";
+                    }}
+                    onDragEnd={()=>{ dragTask.current=null; setDragOver(null); }}
+                  >
+                    <div className="task-row-main">
+                      <span className="drag-handle" title="Drag to move">⠿</span>
+                      <div className={`checkbox${task.done?" checked":""}`}
+                        onClick={e=>{e.stopPropagation();setFocusIdx(flatIdx);toggleTask(ph.id,task.id);}}>
+                        {task.done&&"✓"}
+                      </div>
+                      <div className="task-body">
+                        <span className={`task-text${task.done?" done":""}`}
+                          onClick={()=>{setFocusIdx(flatIdx);toggleTask(ph.id,task.id);}}>
+                          {task.text}
+                        </span>
+                        {task.tag && <span className="tag" style={{marginLeft:8}}>{task.tag}</span>}
+                      </div>
                     </div>
                   </div>
                 </div>
               );
             })}
+            {/* Drop zone at bottom of phase */}
+            <div
+              className={`phase-drop-zone${dragOver?.phaseId===ph.id&&dragOver?.end?" drag-over":""}`}
+              onDragOver={e=>{e.preventDefault();setDragOver({phaseId:ph.id,end:true});}}
+              onDragLeave={()=>setDragOver(null)}
+              onDrop={e=>{
+                e.preventDefault();
+                if (!dragTask.current) return;
+                const {taskId:srcId, phaseId:srcPhase} = dragTask.current;
+                const srcPh = checklist.phases.find(p=>p.id===srcPhase);
+                const movingTask = srcPh.tasks.find(t=>t.id===srcId);
+                let newPhases = checklist.phases.map(p => p.id===srcPhase ? {...p, tasks:p.tasks.filter(t=>t.id!==srcId)} : p);
+                newPhases = newPhases.map(p => p.id!==ph.id ? p : {...p, tasks:[...p.tasks, movingTask]});
+                onChange({...checklist, phases: newPhases});
+                dragTask.current=null; setDragOver(null);
+              }}
+            />
 
             {addingTask===ph.id ? (
               <div className="add-task-row">
@@ -774,8 +893,10 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
       <KeyHintBar hints={confirmDelete ? [
         {key:"y",label:"confirm delete"},{key:"n/Esc",label:"cancel"}
       ] : [
-        {key:"j/k",label:"move"},{key:"x",label:"toggle"},{key:"e",label:"edit"},{key:"a",label:checklist.archived?"unarchive":"archive"},
-        {key:"P",label:"phase done"},{key:"E",label:"export"},{key:"d",label:"delete"},{key:"b/Esc",label:"back"},{key:"?",label:"help"},
+        {key:"j/k",label:"move"},{key:"J/K",label:"reorder"},{key:"H/L",label:"move phase"},
+        {key:"x",label:"toggle"},{key:"P",label:"phase done"},{key:"e",label:"edit"},
+        {key:"a",label:checklist.archived?"unarchive":"archive"},{key:"E",label:"export"},
+        {key:"d",label:"delete"},{key:"b/Esc",label:"back"},{key:"?",label:"help"},
       ]} />
     </div>
   );
