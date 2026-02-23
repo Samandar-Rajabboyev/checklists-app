@@ -177,15 +177,7 @@ const styles = `
   .tag { font-size:0.58rem; letter-spacing:0.05em; padding:1px 5px; border:1px solid #E2DDD4; color:#8C8579; white-space:nowrap; text-transform:uppercase; }
 
 
-  .task-row[draggable="true"] { cursor: grab; }
-  .task-row[draggable="true"]:active { cursor: grabbing; }
-  .task-row.drag-over { border-top: 2px solid #D4522A; }
   .task-row.dragging { opacity: 0.35; }
-  .drag-handle { color: #C8C3BA; font-size: 0.7rem; cursor: grab; padding: 0 4px 0 0; flex-shrink:0; user-select:none; line-height:1; }
-  .drag-handle:hover { color: #8C8579; }
-  .phase-drop-zone { height: 6px; transition: height 0.1s; }
-  .phase-drop-zone.drag-over { height: 20px; background: #FAF6EE; border: 1px dashed #D4522A; }
-  .task-row.move-mode { outline: 2px solid #D4A22A; outline-offset: -2px; background: #FAF6EE; }
 
   .add-task-row { padding:8px 13px; border-top:1px solid #E2DDD4; background:#FFFDF7; }
   .add-task-input { width:100%; border:none; background:transparent; font-family:'DM Mono',monospace; font-size:0.75rem; color:#1A1814; outline:none; }
@@ -790,46 +782,39 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
               const isDragOver = dragOver?.taskId === task.id;
               const isDragging = dragTask.current?.taskId === task.id;
               return (
-                <div key={task.id}>
-                  {/* Drop zone above each task */}
-                  <div
-                    className={`phase-drop-zone${isDragOver?" drag-over":""}`}
-                    onDragOver={e=>{e.preventDefault();setDragOver({taskId:task.id});}}
-                    onDragLeave={()=>setDragOver(null)}
-                    onDrop={e=>{
-                      e.preventDefault();
-                      if (!dragTask.current) return;
-                      const {taskId:srcId, phaseId:srcPhase} = dragTask.current;
-                      if (srcId===task.id) { setDragOver(null); return; }
-                      // Build new phases with task moved before this task
-                      const srcPh = checklist.phases.find(p=>p.id===srcPhase);
-                      const movingTask = srcPh.tasks.find(t=>t.id===srcId);
-                      let newPhases = checklist.phases.map(p => p.id===srcPhase ? {...p, tasks:p.tasks.filter(t=>t.id!==srcId)} : p);
-                      newPhases = newPhases.map(p => p.id!==ph.id ? p : {
-                        ...p, tasks: (() => {
-                          const arr = [...p.tasks];
-                          const insertIdx = arr.findIndex(t=>t.id===task.id);
-                          arr.splice(insertIdx, 0, movingTask);
-                          return arr;
-                        })()
-                      });
-                      onChange({...checklist, phases: newPhases});
-                      dragTask.current = null; setDragOver(null);
-                    }}
-                  />
-                  <div
-                    className={`task-row${isFocused?" focused":""}${isDragging?" dragging":""}`}
-                    ref={isFocused?focusRef:null}
-                    draggable="true"
-                    onMouseEnter={()=>setFocusIdx(flatIdx)}
-                    onDragStart={e=>{
-                      dragTask.current={taskId:task.id,phaseId:ph.id};
-                      e.dataTransfer.effectAllowed="move";
-                    }}
-                    onDragEnd={()=>{ dragTask.current=null; setDragOver(null); }}
-                  >
+                <div key={task.id}
+                  className={`task-row${isFocused?" focused":""}${isDragging?" dragging":""}`}
+                  ref={isFocused?focusRef:null}
+                  draggable="true"
+                  onMouseEnter={()=>setFocusIdx(flatIdx)}
+                  onDragStart={e=>{
+                    dragTask.current={taskId:task.id,phaseId:ph.id};
+                    e.dataTransfer.effectAllowed="move";
+                  }}
+                  onDragEnd={()=>{ dragTask.current=null; setDragOver(null); }}
+                  onDragOver={e=>{e.preventDefault();setDragOver({taskId:task.id});}}
+                  onDragLeave={()=>setDragOver(null)}
+                  onDrop={e=>{
+                    e.preventDefault();
+                    if (!dragTask.current) return;
+                    const {taskId:srcId, phaseId:srcPhase} = dragTask.current;
+                    if (srcId===task.id) { setDragOver(null); return; }
+                    const srcPh = checklist.phases.find(p=>p.id===srcPhase);
+                    const movingTask = srcPh.tasks.find(t=>t.id===srcId);
+                    let newPhases = checklist.phases.map(p => p.id===srcPhase ? {...p, tasks:p.tasks.filter(t=>t.id!==srcId)} : p);
+                    newPhases = newPhases.map(p => p.id!==ph.id ? p : {
+                      ...p, tasks: (() => {
+                        const arr = [...p.tasks];
+                        const insertIdx = arr.findIndex(t=>t.id===task.id);
+                        arr.splice(insertIdx, 0, movingTask);
+                        return arr;
+                      })()
+                    });
+                    onChange({...checklist, phases: newPhases});
+                    dragTask.current = null; setDragOver(null);
+                  }}
+                >
                     <div className="task-row-main">
-                      <span className="drag-handle" title="Drag to move">⠿</span>
                       <div className={`checkbox${task.done?" checked":""}`}
                         onClick={e=>{e.stopPropagation();setFocusIdx(flatIdx);toggleTask(ph.id,task.id);}}>
                         {task.done&&"✓"}
@@ -842,27 +827,9 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
                         {task.tag && <span className="tag" style={{marginLeft:8}}>{task.tag}</span>}
                       </div>
                     </div>
-                  </div>
                 </div>
               );
             })}
-            {/* Drop zone at bottom of phase */}
-            <div
-              className={`phase-drop-zone${dragOver?.phaseId===ph.id&&dragOver?.end?" drag-over":""}`}
-              onDragOver={e=>{e.preventDefault();setDragOver({phaseId:ph.id,end:true});}}
-              onDragLeave={()=>setDragOver(null)}
-              onDrop={e=>{
-                e.preventDefault();
-                if (!dragTask.current) return;
-                const {taskId:srcId, phaseId:srcPhase} = dragTask.current;
-                const srcPh = checklist.phases.find(p=>p.id===srcPhase);
-                const movingTask = srcPh.tasks.find(t=>t.id===srcId);
-                let newPhases = checklist.phases.map(p => p.id===srcPhase ? {...p, tasks:p.tasks.filter(t=>t.id!==srcId)} : p);
-                newPhases = newPhases.map(p => p.id!==ph.id ? p : {...p, tasks:[...p.tasks, movingTask]});
-                onChange({...checklist, phases: newPhases});
-                dragTask.current=null; setDragOver(null);
-              }}
-            />
 
             {addingTask===ph.id ? (
               <div className="add-task-row">
