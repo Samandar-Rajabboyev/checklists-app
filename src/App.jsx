@@ -327,6 +327,30 @@ function Modal({ initial, onSave, onClose }) {
     setTimeout(() => document.querySelector(".modal-phase:last-child .modal-phase-header input")?.focus(), 30);
   };
   const removePhase = (pid) => setPhases(p => p.filter(ph => ph.id !== pid));
+  const movePhase = (pid, dir) => setPhases(p => {
+    const idx = p.findIndex(ph => ph.id === pid);
+    const to = dir === "up" ? idx - 1 : idx + 1;
+    if (to < 0 || to >= p.length) return p;
+    const arr = [...p];
+    [arr[idx], arr[to]] = [arr[to], arr[idx]];
+    return arr;
+  });
+  const insertPhaseAfter = (pid) => {
+    const newPh = { id: uid(), label: `Phase ${phases.length}`, title: "", duration: "", tasks: [{ id: uid(), text: "", tag: "", done: false }] };
+    setPhases(p => {
+      const idx = p.findIndex(ph => ph.id === pid);
+      const arr = [...p];
+      arr.splice(idx + 1, 0, newPh);
+      return arr;
+    });
+    lastPhaseId.current = newPh.id;
+    setTimeout(() => {
+      const all = document.querySelectorAll(".modal-phase");
+      const idx = phases.findIndex(ph => ph.id === pid);
+      const next = all[idx + 1];
+      if (next) next.querySelector(".modal-phase-header input")?.focus();
+    }, 30);
+  };
   const updatePhaseField = (pid, f, v) => setPhases(p => p.map(ph => ph.id === pid ? {...ph,[f]:v} : ph));
   const addTask = (pid) => {
     setPhases(p => p.map(ph => ph.id === pid ? {...ph, tasks:[...ph.tasks,{id:uid(),text:"",tag:"",done:false}]} : ph));
@@ -406,7 +430,11 @@ function Modal({ initial, onSave, onClose }) {
                 <input value={ph.label} onChange={e=>updatePhaseField(ph.id,"label",e.target.value)} placeholder="Phase 0" onFocus={()=>{lastPhaseId.current=ph.id;}} />
                 <input value={ph.title} onChange={e=>updatePhaseField(ph.id,"title",e.target.value)} placeholder="Title" onFocus={()=>{lastPhaseId.current=ph.id;}} />
                 <input value={ph.duration} onChange={e=>updatePhaseField(ph.id,"duration",e.target.value)} placeholder="2 days" onFocus={()=>{lastPhaseId.current=ph.id;}} />
-                <button className="remove-btn" onClick={()=>removePhase(ph.id)}>×</button>
+                <div style={{display:"flex",gap:2}}>
+                  <button className="remove-btn" title="Move up" onClick={()=>movePhase(ph.id,"up")}>↑</button>
+                  <button className="remove-btn" title="Move down" onClick={()=>movePhase(ph.id,"down")}>↓</button>
+                  <button className="remove-btn" onClick={()=>removePhase(ph.id)}>×</button>
+                </div>
               </div>
               <div className="phase-tasks">
                 {ph.tasks.map(t => (
@@ -422,9 +450,10 @@ function Modal({ initial, onSave, onClose }) {
                 ))}
                 <button className="small-link" onClick={()=>addTask(ph.id)}>+ add task</button>
               </div>
+              <button className="small-link" style={{marginTop:4,display:"block"}} onClick={()=>insertPhaseAfter(ph.id)}>+ insert phase below</button>
             </div>
           ))}
-          <button className="small-link" onClick={addPhase}>+ add phase</button>
+          <button className="small-link" onClick={addPhase}>+ add phase at end</button>
         </div>
         <div className="modal-footer">
           <div className="modal-keyhints">
@@ -914,6 +943,28 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
       else if (e.key==="L"&&item?.type==="task") { e.preventDefault(); moveTask(item.taskId,item.phaseId,"right"); }
       else if (e.key==="a") { e.preventDefault(); onArchive(); }
       else if (e.key==="E") { e.preventDefault(); onExport(); }
+      else if (e.key==="["||e.key==="]") {
+        e.preventDefault();
+        const item = allItems[focusIdx];
+        if (!item) return;
+        const phases = checklist.phases;
+        const phIdx = phases.findIndex(p => p.id === item.phaseId);
+        const toIdx = e.key==="[" ? phIdx - 1 : phIdx + 1;
+        if (toIdx < 0 || toIdx >= phases.length) return;
+        const newPhases = [...phases];
+        [newPhases[phIdx], newPhases[toIdx]] = [newPhases[toIdx], newPhases[phIdx]];
+        onChange({...checklist, phases: newPhases});
+        // Restore focus to the same task after phase order changes
+        const trackedId = item.taskId;
+        setTimeout(() => {
+          const newAllItems = newPhases.flatMap(ph => [
+            ...ph.tasks.map(t => ({type:"task", phaseId:ph.id, taskId:t.id})),
+            {type:"add", phaseId:ph.id},
+          ]);
+          const newIdx = newAllItems.findIndex(it => it.type==="task" && it.taskId===trackedId);
+          if (newIdx !== -1) setFocusIdx(newIdx);
+        }, 0);
+      }
       else if (e.key==="g") setFocusIdx(0);
       else if (e.key==="G") setFocusIdx(allItems.length-1);
     };
@@ -1096,7 +1147,7 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
         {key:"j/k",label:"move"},{key:"V",label:"visual mode"},{key:"J/K",label:"reorder"},{key:"H/L",label:"move phase"},
         {key:"x",label:"toggle"},{key:"dd",label:"delete task"},{key:"P",label:"phase done"},{key:"e",label:"edit"},
         {key:"a",label:checklist.archived?"unarchive":"archive"},{key:"E",label:"export"},
-        {key:"d",label:"delete"},{key:"b/Esc",label:"back"},{key:"?",label:"help"},
+        {key:"d",label:"delete"},{key:"[/]",label:"move phase"},{key:"b/Esc",label:"back"},{key:"?",label:"help"},
       ]} />
     </div>
   );
