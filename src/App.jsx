@@ -3,13 +3,181 @@ import { useState, useEffect, useCallback, useRef } from "react";
 // ──── Utils ───────────────────────────────────────────────────────────────────
 
 const ACCENT_COLORS = ["#D4522A", "#2A6DD4", "#2AA65A", "#8B2AD4", "#D4A22A"];
+
+const SCHEMES = [
+  {
+    // Notion dark — deep charcoal, the official Notion dark mode
+    id: "notion-dark",
+    name: "Notion Dark",
+    bg: "#191919",
+    bgCard: "#202020",
+    bgHover: "#282828",
+    text: "#E6E6E4",
+    textMuted: "#828280",
+    textPlaceholder: "#484846",
+    border: "#303030",
+    borderStrong: "#E6E6E4",
+    phaseBar: "#E6E6E4",
+    phaseBarText: "#191919",
+    hintBg: "#111111",
+    hintText: "#626260",
+    hintKey: "#E6E6E4",
+    hintKeyBg: "#282828",
+    hintKeyBorder: "#3C3C3C",
+    modalKbdBg: "#282828",
+    modalKbdBorder: "#3C3C3C",
+    overlayBg: "rgba(0,0,0,0.55)",
+    overlayBgHeavy: "rgba(0,0,0,0.75)",
+    accent: "#E6E6E4",
+  },
+  {
+    // Notion dark warm — same structure, slightly warmer tones
+    id: "notion-dark-warm",
+    name: "Notion Dark Warm",
+    bg: "#1E1C1A",
+    bgCard: "#262422",
+    bgHover: "#2E2C28",
+    text: "#E8E4DE",
+    textMuted: "#847E76",
+    textPlaceholder: "#4A4640",
+    border: "#323028",
+    borderStrong: "#E8E4DE",
+    phaseBar: "#E8E4DE",
+    phaseBarText: "#1E1C1A",
+    hintBg: "#141210",
+    hintText: "#646058",
+    hintKey: "#E8E4DE",
+    hintKeyBg: "#2E2C28",
+    hintKeyBorder: "#3E3C36",
+    modalKbdBg: "#2E2C28",
+    modalKbdBorder: "#3E3C36",
+    overlayBg: "rgba(10,8,6,0.6)",
+    overlayBgHeavy: "rgba(10,8,6,0.78)",
+    accent: "#C8A86A",
+  },
+  {
+    // Notion dark cool — same structure, cooler blue-gray tones
+    id: "notion-dark-cool",
+    name: "Notion Dark Cool",
+    bg: "#1A1C1E",
+    bgCard: "#222426",
+    bgHover: "#2A2C30",
+    text: "#E2E4E8",
+    textMuted: "#7E8288",
+    textPlaceholder: "#464A50",
+    border: "#2E3236",
+    borderStrong: "#E2E4E8",
+    phaseBar: "#E2E4E8",
+    phaseBarText: "#1A1C1E",
+    hintBg: "#121416",
+    hintText: "#606468",
+    hintKey: "#E2E4E8",
+    hintKeyBg: "#2A2C30",
+    hintKeyBorder: "#3A3E44",
+    modalKbdBg: "#2A2C30",
+    modalKbdBorder: "#3A3E44",
+    overlayBg: "rgba(8,10,12,0.6)",
+    overlayBgHeavy: "rgba(8,10,12,0.78)",
+    accent: "#7EB8D4",
+  },
+  {
+    // Notion light — the original, clean and airy
+    id: "notion",
+    name: "Notion",
+    bg: "#FFFFFF",
+    bgCard: "#FBFBFA",
+    bgHover: "#F1F0EF",
+    text: "#37352F",
+    textMuted: "#9B9A97",
+    textPlaceholder: "#C7C6C4",
+    border: "#E9E9E7",
+    borderStrong: "#37352F",
+    phaseBar: "#37352F",
+    phaseBarText: "#FFFFFF",
+    hintBg: "#2F2F2F",
+    hintText: "#888580",
+    hintKey: "#FFFFFF",
+    hintKeyBg: "#454545",
+    hintKeyBorder: "#555555",
+    modalKbdBg: "#F1F0EF",
+    modalKbdBorder: "#DDDDDD",
+    overlayBg: "rgba(55,53,47,0.4)",
+    overlayBgHeavy: "rgba(55,53,47,0.65)",
+    accent: "#37352F",
+  },
+  {
+    // Notion light warm — slightly warmer off-white, easier for long sessions
+    id: "notion-warm",
+    name: "Notion Warm",
+    bg: "#FAF8F5",
+    bgCard: "#FFFFFF",
+    bgHover: "#F0EDE8",
+    text: "#37332C",
+    textMuted: "#9A9590",
+    textPlaceholder: "#C4BFB8",
+    border: "#E8E4DE",
+    borderStrong: "#37332C",
+    phaseBar: "#37332C",
+    phaseBarText: "#FAF8F5",
+    hintBg: "#2C2822",
+    hintText: "#847E78",
+    hintKey: "#FAF8F5",
+    hintKeyBg: "#42403A",
+    hintKeyBorder: "#545048",
+    modalKbdBg: "#F0EDE8",
+    modalKbdBorder: "#D8D4CE",
+    overlayBg: "rgba(44,40,34,0.45)",
+    overlayBgHeavy: "rgba(44,40,34,0.65)",
+    accent: "#9A7A4A",
+  },
+];
+
+const loadScheme = () => {
+  try {
+    const id = localStorage.getItem("scheme");
+    return SCHEMES.find((s) => s.id === id) || SCHEMES[0];
+  } catch {
+    return SCHEMES[0];
+  }
+};
+const saveScheme = (s) => {
+  try {
+    localStorage.setItem("scheme", s.id);
+  } catch {}
+};
+
+const applyScheme = (s) => {
+  const r = document.documentElement.style;
+  r.setProperty("--bg", s.bg);
+  r.setProperty("--bg-card", s.bgCard);
+  r.setProperty("--bg-hover", s.bgHover);
+  r.setProperty("--text", s.text);
+  r.setProperty("--text-muted", s.textMuted);
+  r.setProperty("--text-placeholder", s.textPlaceholder);
+  r.setProperty("--border", s.border);
+  r.setProperty("--border-strong", s.borderStrong);
+  r.setProperty("--phase-bar", s.phaseBar);
+  r.setProperty("--phase-bar-text", s.phaseBarText);
+  r.setProperty("--hint-bg", s.hintBg);
+  r.setProperty("--hint-text", s.hintText);
+  r.setProperty("--hint-key", s.hintKey);
+  r.setProperty("--hint-key-bg", s.hintKeyBg);
+  r.setProperty("--hint-key-border", s.hintKeyBorder);
+  r.setProperty("--modal-kbd-bg", s.modalKbdBg);
+  r.setProperty("--modal-kbd-border", s.modalKbdBorder);
+  r.setProperty("--overlay-bg", s.overlayBg);
+  r.setProperty("--overlay-bg-heavy", s.overlayBgHeavy);
+  r.setProperty("--accent", s.accent);
+};
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 const getProgress = (checklist) => {
-  let done = 0, total = 0;
+  let done = 0,
+    total = 0;
   for (const phase of checklist.phases) {
     for (const task of phase.tasks) {
-      total++; if (task.done) done++;
+      total++;
+      if (task.done) done++;
     }
   }
   return { done, total };
@@ -24,7 +192,8 @@ const loadData = () => {
   } catch {}
   return [];
 };
-const saveData = (data) => localStorage.setItem("checklists-v2", JSON.stringify(data));
+const saveData = (data) =>
+  localStorage.setItem("checklists-v2", JSON.stringify(data));
 
 // ──── Confetti ────────────────────────────────────────────────────────────────
 
@@ -39,33 +208,52 @@ function Confetti({ onDone }) {
       x: Math.random() * canvas.width,
       y: -20 - Math.random() * 100,
       r: 4 + Math.random() * 6,
-      color: ["#D4522A","#2A6DD4","#2AA65A","#D4A22A","#1A1814"][Math.floor(Math.random()*5)],
+      color: ["#D4522A", "#2A6DD4", "#2AA65A", "#D4A22A", "#1A1814"][
+        Math.floor(Math.random() * 5)
+      ],
       vx: (Math.random() - 0.5) * 3,
       vy: 2 + Math.random() * 3,
       rot: Math.random() * 360,
       vrot: (Math.random() - 0.5) * 8,
     }));
-    let frame, alive = true;
+    let frame,
+      alive = true;
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       let any = false;
       for (const p of pieces) {
-        p.x += p.vx; p.y += p.vy; p.rot += p.vrot; p.vy += 0.05;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vrot;
+        p.vy += 0.05;
         if (p.y < canvas.height + 20) any = true;
         ctx.save();
         ctx.translate(p.x, p.y);
-        ctx.rotate(p.rot * Math.PI / 180);
+        ctx.rotate((p.rot * Math.PI) / 180);
         ctx.fillStyle = p.color;
-        ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r * 0.6);
+        ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 0.6);
         ctx.restore();
       }
       if (any && alive) frame = requestAnimationFrame(draw);
       else onDone();
     };
     draw();
-    return () => { alive = false; cancelAnimationFrame(frame); };
+    return () => {
+      alive = false;
+      cancelAnimationFrame(frame);
+    };
   }, []);
-  return <canvas ref={canvasRef} style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:200}} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 200,
+      }}
+    />
+  );
 }
 
 // ──── Styles ──────────────────────────────────────────────────────────────────
@@ -73,167 +261,171 @@ function Confetti({ onDone }) {
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600&family=DM+Mono:wght@400;500&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #F5F0E8; color: #1A1814; font-family: 'DM Mono', monospace; min-height: 100vh; padding-bottom: 34px; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; padding-bottom: 34px; }
   .serif { font-family: 'Fraunces', serif; font-weight: 600; }
   .app { max-width: 960px; margin: 0 auto; padding: 0 24px 60px; }
 
-  .header { display:flex; align-items:center; justify-content:space-between; padding:36px 0 18px; border-bottom:1.5px solid #1A1814; margin-bottom:24px; gap:12px; flex-wrap:wrap; }
+  .header { display:flex; align-items:center; justify-content:space-between; padding:36px 0 18px; border-bottom:1.5px solid var(--border-strong); margin-bottom:24px; gap:12px; flex-wrap:wrap; }
   .header h1 { font-size: 2.2rem; line-height: 1; }
   .header-right { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
   .btn { border:none; font-family:'DM Mono',monospace; font-size:0.72rem; cursor:pointer; padding:7px 13px; letter-spacing:0.04em; }
-  .btn-dark { background:#1A1814; color:#F5F0E8; }
-  .btn-dark:hover { background:#333; }
-  .btn-muted { background:none; border:1px solid #E2DDD4; color:#8C8579; }
-  .btn-muted:hover { border-color:#8C8579; color:#1A1814; }
+  .btn-dark { background:var(--border-strong); color:var(--bg); }
+  .btn-dark:hover { opacity:0.85; }
+  .btn-muted { background:none; border:1px solid var(--border); color:var(--text-muted); }
+  .btn-muted:hover { border-color:var(--text-muted); color:var(--text); }
 
   .search-bar { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
-  .search-input { flex:1; background:#FFFDF7; border:1px solid #E2DDD4; font-family:'DM Mono',monospace; font-size:0.82rem; padding:8px 12px; color:#1A1814; outline:none; }
-  .search-input:focus { border-color:#8C8579; }
-  .search-clear { background:none; border:none; font-size:1rem; cursor:pointer; color:#8C8579; padding:0 4px; line-height:1; }
-  .search-clear:hover { color:#D4522A; }
+  .search-input { flex:1; background:var(--bg-card); border:1px solid var(--border); font-family:'DM Mono',monospace; font-size:0.82rem; padding:8px 12px; color:var(--text); outline:none; }
+  .search-input:focus { border-color:var(--text-muted); }
+  .search-clear { background:none; border:none; font-size:1rem; cursor:pointer; color:var(--text-muted); padding:0 4px; line-height:1; }
+  .search-clear:hover { color:var(--accent); }
 
-  .filter-tabs { display:flex; border:1px solid #E2DDD4; width:fit-content; }
-  .filter-tab { background:none; border:none; border-right:1px solid #E2DDD4; font-family:'DM Mono',monospace; font-size:0.66rem; padding:5px 13px; cursor:pointer; color:#8C8579; letter-spacing:0.04em; }
+  .filter-tabs { display:flex; border:1px solid var(--border); width:fit-content; }
+  .filter-tab { background:none; border:none; border-right:1px solid var(--border); font-family:'DM Mono',monospace; font-size:0.66rem; padding:5px 13px; cursor:pointer; color:var(--text-muted); letter-spacing:0.04em; }
   .filter-tab:last-child { border-right:none; }
-  .filter-tab.active { background:#1A1814; color:#F5F0E8; }
+  .filter-tab.active { background:var(--border-strong); color:var(--bg); }
 
   .view-toggle { display:flex; gap:4px; align-items:center; }
-  .view-toggle-label { font-size:0.63rem; color:#8C8579; letter-spacing:0.06em; text-transform:uppercase; margin-right:4px; }
-  .view-btn { background:none; border:1px solid #E2DDD4; font-family:'DM Mono',monospace; font-size:0.66rem; padding:4px 10px; cursor:pointer; color:#8C8579; }
-  .view-btn.active { background:#1A1814; color:#F5F0E8; border-color:#1A1814; }
+  .view-toggle-label { font-size:0.63rem; color:var(--text-muted); letter-spacing:0.06em; text-transform:uppercase; margin-right:4px; }
+  .view-btn { background:none; border:1px solid var(--border); font-family:'DM Mono',monospace; font-size:0.66rem; padding:4px 10px; cursor:pointer; color:var(--text-muted); }
+  .view-btn.active { background:var(--border-strong); color:var(--bg); border-color:var(--border-strong); }
+
+  .scheme-picker { display:flex; gap:5px; align-items:center; }
+  .scheme-dot { width:14px; height:14px; cursor:pointer; border:2px solid transparent; border-radius:50%; flex-shrink:0; }
+  .scheme-dot.active { border-color:var(--border-strong); }
+  .scheme-dot:hover { opacity:0.8; }
 
   .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
   @media (max-width:600px) { .grid { grid-template-columns:1fr; } }
   .list-view { display:flex; flex-direction:column; gap:8px; }
-  .compact-view { display:flex; flex-direction:column; border:1px solid #E2DDD4; }
+  .compact-view { display:flex; flex-direction:column; border:1px solid var(--border); }
 
-  .card { background:#FFFDF7; border:1px solid #E2DDD4; padding:20px 18px 16px; cursor:pointer; }
-  .card:hover { background:#FAF6EE; }
-  .card.focused { background:#FAF6EE; outline:2px solid #D4522A; outline-offset:-2px; }
+  .card { background:var(--bg-card); border:1px solid var(--border); padding:20px 18px 16px; cursor:pointer; }
+  .card:hover { background:var(--bg-hover); }
+  .card.focused { background:var(--bg-hover); outline:2px solid var(--accent); outline-offset:-2px; }
   .card-archived { opacity:0.55; }
   .card-emoji { font-size:1.4rem; margin-bottom:7px; }
   .card-title { font-size:1.1rem; margin-bottom:5px; }
-  .card-desc { color:#8C8579; font-size:0.7rem; line-height:1.5; margin-bottom:12px; }
+  .card-desc { color:var(--text-muted); font-size:0.7rem; line-height:1.5; margin-bottom:12px; }
   .card-meta { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  .card-duration { font-size:0.64rem; color:#8C8579; }
-  .card-archived-badge { font-size:0.6rem; color:#8C8579; border:1px solid #E2DDD4; padding:1px 5px; letter-spacing:0.05em; text-transform:uppercase; }
+  .card-duration { font-size:0.64rem; color:var(--text-muted); }
+  .card-archived-badge { font-size:0.6rem; color:var(--text-muted); border:1px solid var(--border); padding:1px 5px; letter-spacing:0.05em; text-transform:uppercase; }
 
-  .list-card { background:#FFFDF7; border:1px solid #E2DDD4; padding:11px 14px; cursor:pointer; display:flex; align-items:center; gap:12px; }
-  .list-card:hover, .list-card.focused { background:#FAF6EE; }
-  .list-card.focused { outline:2px solid #D4522A; outline-offset:-2px; }
+  .list-card { background:var(--bg-card); border:1px solid var(--border); padding:11px 14px; cursor:pointer; display:flex; align-items:center; gap:12px; }
+  .list-card:hover, .list-card.focused { background:var(--bg-hover); }
+  .list-card.focused { outline:2px solid var(--accent); outline-offset:-2px; }
   .list-card-emoji { font-size:1.1rem; flex-shrink:0; }
   .list-card-body { flex:1; min-width:0; }
   .list-card-title { font-size:0.88rem; margin-bottom:2px; }
-  .list-card-desc { font-size:0.66rem; color:#8C8579; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .list-card-desc { font-size:0.66rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .list-card-right { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
 
-  .compact-card { background:#FFFDF7; border-bottom:1px solid #E2DDD4; padding:8px 13px; cursor:pointer; display:flex; align-items:center; gap:10px; }
+  .compact-card { background:var(--bg-card); border-bottom:1px solid var(--border); padding:8px 13px; cursor:pointer; display:flex; align-items:center; gap:10px; }
   .compact-card:last-child { border-bottom:none; }
-  .compact-card:hover, .compact-card.focused { background:#FAF6EE; }
-  .compact-card.focused { outline:2px solid #D4522A; outline-offset:-2px; }
+  .compact-card:hover, .compact-card.focused { background:var(--bg-hover); }
+  .compact-card.focused { outline:2px solid var(--accent); outline-offset:-2px; }
   .compact-card-emoji { font-size:0.95rem; flex-shrink:0; }
   .compact-card-title { font-size:0.76rem; flex:1; }
-  .compact-progress-text { font-size:0.63rem; color:#8C8579; flex-shrink:0; }
+  .compact-progress-text { font-size:0.63rem; color:var(--text-muted); flex-shrink:0; }
 
-  .progress-bar-bg { height:3px; background:#E2DDD4; margin-bottom:5px; }
+  .progress-bar-bg { height:3px; background:var(--border); margin-bottom:5px; }
   .progress-bar-fill { height:100%; }
-  .progress-label { font-size:0.64rem; color:#8C8579; }
-  .progress-label-large { font-size:0.74rem; color:#8C8579; letter-spacing:0.06em; margin-bottom:12px; text-transform:uppercase; }
+  .progress-label { font-size:0.64rem; color:var(--text-muted); }
+  .progress-label-large { font-size:0.74rem; color:var(--text-muted); letter-spacing:0.06em; margin-bottom:12px; text-transform:uppercase; }
 
-  .detail-header { padding:32px 0 18px; border-bottom:1.5px solid #1A1814; margin-bottom:28px; }
+  .detail-header { padding:32px 0 18px; border-bottom:1.5px solid var(--border-strong); margin-bottom:28px; }
   .detail-header-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; }
   .detail-title-row { display:flex; flex-direction:column; gap:5px; }
   .detail-back-row { display:flex; align-items:center; gap:10px; }
-  .detail-subtitle { font-size:0.66rem; color:#8C8579; letter-spacing:0.08em; text-transform:uppercase; }
-  .back-btn { background:none; border:none; font-family:'DM Mono',monospace; font-size:1rem; cursor:pointer; color:#1A1814; padding:0; line-height:1; }
-  .back-btn:hover { color:#D4522A; }
+  .detail-subtitle { font-size:0.66rem; color:var(--text-muted); letter-spacing:0.08em; text-transform:uppercase; }
+  .back-btn { background:none; border:none; font-family:'DM Mono',monospace; font-size:1rem; cursor:pointer; color:var(--text); padding:0; line-height:1; }
+  .back-btn:hover { color:var(--accent); }
   .detail-actions { display:flex; gap:10px; flex-wrap:wrap; }
-  .action-btn { background:none; border:none; font-family:'DM Mono',monospace; font-size:0.68rem; cursor:pointer; color:#8C8579; padding:0; }
-  .action-btn:hover { color:#1A1814; }
-  .action-btn.danger:hover { color:#D4522A; }
-  .confirm-delete { font-size:0.7rem; color:#D4522A; display:flex; align-items:center; gap:8px; }
-  .confirm-btn { background:none; border:none; font-family:'DM Mono',monospace; font-size:0.7rem; cursor:pointer; color:#8C8579; text-decoration:underline; padding:0; }
-  .confirm-btn:hover { color:#1A1814; }
-  .confirm-btn.yes { color:#D4522A; }
+  .action-btn { background:none; border:none; font-family:'DM Mono',monospace; font-size:0.68rem; cursor:pointer; color:var(--text-muted); padding:0; }
+  .action-btn:hover { color:var(--text); }
+  .action-btn.danger:hover { color:var(--accent); }
+  .confirm-delete { font-size:0.7rem; color:var(--accent); display:flex; align-items:center; gap:8px; }
+  .confirm-btn { background:none; border:none; font-family:'DM Mono',monospace; font-size:0.7rem; cursor:pointer; color:var(--text-muted); text-decoration:underline; padding:0; }
+  .confirm-btn:hover { color:var(--text); }
+  .confirm-btn.yes { color:var(--accent); }
 
   .phase-section { margin-bottom:28px; }
-  .phase-label { display:inline-flex; align-items:center; gap:7px; background:#1A1814; color:#F5F0E8; font-family:'DM Mono',monospace; font-size:0.64rem; letter-spacing:0.08em; padding:5px 11px; margin-bottom:10px; text-transform:uppercase; }
-  .tasks-list { border:1px solid #E2DDD4; background:#FFFDF7; }
+  .phase-label { display:inline-flex; align-items:center; gap:7px; background:var(--phase-bar); color:var(--phase-bar-text); font-family:'DM Mono',monospace; font-size:0.64rem; letter-spacing:0.08em; padding:5px 11px; margin-bottom:10px; text-transform:uppercase; }
+  .tasks-list { border:1px solid var(--border); background:var(--bg-card); }
 
-  .task-row { display:flex; flex-direction:column; padding:11px 15px; border-bottom:1px solid #E2DDD4; cursor:pointer; }
+  .task-row { display:flex; flex-direction:column; padding:11px 15px; border-bottom:1px solid var(--border); cursor:pointer; }
   .task-row:last-child { border-bottom:none; }
-  .task-row:hover { background:#FAF6EE; }
-  .task-row.focused { background:#FAF6EE; outline:2px solid #D4522A; outline-offset:-2px; }
+  .task-row:hover { background:var(--bg-hover); }
+  .task-row.focused { background:var(--bg-hover); outline:2px solid var(--accent); outline-offset:-2px; }
   .task-row-main { display:flex; align-items:center; gap:11px; }
 
-  .checkbox { width:15px; height:15px; border:1.5px solid #8C8579; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:10px; color:white; cursor:pointer; }
-  .checkbox.checked { background:#D4522A; border-color:#D4522A; }
+  .checkbox { width:15px; height:15px; border:1.5px solid var(--text-muted); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:10px; color:white; cursor:pointer; }
+  .checkbox.checked { background:var(--accent); border-color:var(--accent); }
 
   .task-body { flex:1; min-width:0; }
   .task-text { font-size:0.75rem; line-height:1.4; }
-  .task-text.done { text-decoration:line-through; color:#8C8579; }
+  .task-text.done { text-decoration:line-through; color:var(--text-muted); }
   .task-actions { display:flex; gap:8px; align-items:center; margin-top:3px; flex-wrap:wrap; }
-  .tag { font-size:0.58rem; letter-spacing:0.05em; padding:1px 5px; border:1px solid #E2DDD4; color:#8C8579; white-space:nowrap; text-transform:uppercase; }
-
+  .tag { font-size:0.58rem; letter-spacing:0.05em; padding:1px 5px; border:1px solid var(--border); color:var(--text-muted); white-space:nowrap; text-transform:uppercase; }
 
   .task-row.dragging { opacity: 0.35; }
-  .task-row.selected { background: #FAF6EE; outline: 2px solid #D4A22A; outline-offset: -2px; }
-  .task-row.selected.focused { outline: 2px solid #D4522A; }
+  .task-row.selected { background:var(--bg-hover); outline:2px solid #D4A22A; outline-offset:-2px; }
+  .task-row.selected.focused { outline:2px solid var(--accent); }
 
-  .add-task-row { padding:8px 13px; border-top:1px solid #E2DDD4; background:#FFFDF7; }
-  .add-task-input { width:100%; border:none; background:transparent; font-family:'DM Mono',monospace; font-size:0.75rem; color:#1A1814; outline:none; }
-  .add-task-input::placeholder { color:#B8B2A8; }
-  .add-task-link { background:none; border:none; font-family:'DM Mono',monospace; font-size:0.68rem; color:#8C8579; cursor:pointer; padding:8px 13px; display:block; }
-  .add-task-link:hover { color:#D4522A; }
+  .add-task-row { padding:8px 13px; border-top:1px solid var(--border); background:var(--bg-card); }
+  .add-task-input { width:100%; border:none; background:transparent; font-family:'DM Mono',monospace; font-size:0.75rem; color:var(--text); outline:none; }
+  .add-task-input::placeholder { color:var(--text-placeholder); }
+  .add-task-link { background:none; border:none; font-family:'DM Mono',monospace; font-size:0.68rem; color:var(--text-muted); cursor:pointer; padding:8px 13px; display:block; }
+  .add-task-link:hover { color:var(--accent); }
 
-  .modal-overlay { position:fixed; inset:0; background:rgba(26,24,20,0.55); display:flex; align-items:center; justify-content:center; z-index:100; padding:24px; }
-  .modal { background:#F5F0E8; border:1.5px solid #1A1814; width:100%; max-width:600px; max-height:85vh; overflow-y:auto; padding:26px 24px; }
+  .modal-overlay { position:fixed; inset:0; background:var(--overlay-bg); display:flex; align-items:center; justify-content:center; z-index:100; padding:24px; }
+  .modal { background:var(--bg); border:1.5px solid var(--border-strong); width:100%; max-width:600px; max-height:85vh; overflow-y:auto; padding:26px 24px; }
   .modal-title { font-size:1.3rem; margin-bottom:20px; }
   .field { margin-bottom:13px; }
-  .field label { display:block; font-size:0.64rem; color:#8C8579; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:4px; }
-  .field input, .field textarea { width:100%; background:#FFFDF7; border:1px solid #E2DDD4; font-family:'DM Mono',monospace; font-size:0.78rem; color:#1A1814; padding:6px 9px; outline:none; }
-  .field input:focus, .field textarea:focus { border-color:#8C8579; }
+  .field label { display:block; font-size:0.64rem; color:var(--text-muted); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:4px; }
+  .field input, .field textarea { width:100%; background:var(--bg-card); border:1px solid var(--border); font-family:'DM Mono',monospace; font-size:0.78rem; color:var(--text); padding:6px 9px; outline:none; }
+  .field input:focus, .field textarea:focus { border-color:var(--text-muted); }
   .field textarea { resize:vertical; min-height:52px; }
   .color-swatches { display:flex; gap:7px; margin-top:4px; }
   .swatch { width:21px; height:21px; cursor:pointer; border:2px solid transparent; }
-  .swatch.selected { border-color:#1A1814; }
+  .swatch.selected { border-color:var(--border-strong); }
   .modal-phases { margin-top:16px; }
-  .modal-phase { border:1px solid #E2DDD4; background:#FFFDF7; padding:11px; margin-bottom:9px; }
+  .modal-phase { border:1px solid var(--border); background:var(--bg-card); padding:11px; margin-bottom:9px; }
   .modal-phase-header { display:grid; grid-template-columns:1fr 1fr 76px auto; gap:5px; margin-bottom:7px; align-items:start; }
-  .modal-phase-header input { background:#F5F0E8; border:1px solid #E2DDD4; font-family:'DM Mono',monospace; font-size:0.7rem; padding:4px 6px; color:#1A1814; outline:none; width:100%; }
+  .modal-phase-header input { background:var(--bg); border:1px solid var(--border); font-family:'DM Mono',monospace; font-size:0.7rem; padding:4px 6px; color:var(--text); outline:none; width:100%; }
   .phase-task-row { display:flex; gap:5px; align-items:center; margin-bottom:5px; }
-  .phase-task-row input { flex:1; background:#F5F0E8; border:1px solid #E2DDD4; font-family:'DM Mono',monospace; font-size:0.7rem; padding:4px 6px; color:#1A1814; outline:none; }
-  .remove-btn { background:none; border:none; font-size:0.9rem; cursor:pointer; color:#8C8579; padding:3px; line-height:1; }
-  .remove-btn:hover { color:#D4522A; }
-  .small-link { background:none; border:none; font-family:'DM Mono',monospace; font-size:0.66rem; color:#8C8579; cursor:pointer; padding:3px 0; text-decoration:underline; }
-  .small-link:hover { color:#1A1814; }
-  .modal-footer { display:flex; align-items:center; justify-content:space-between; margin-top:20px; padding-top:14px; border-top:1px solid #E2DDD4; gap:10px; flex-wrap:wrap; }
-  .modal-keyhints { display:flex; gap:12px; flex-wrap:wrap; align-items:center; font-size:0.58rem; color:#8C8579; }
-  .modal-keyhints kbd { color:#1A1814; background:#E8E3D8; padding:1px 4px; border:1px solid #C8C3BA; font-family:'DM Mono',monospace; font-size:0.58rem; margin-right:2px; }
-  .btn-save { background:#1A1814; color:#F5F0E8; border:none; padding:7px 15px; font-family:'DM Mono',monospace; font-size:0.7rem; cursor:pointer; }
-  .btn-save:hover { background:#333; }
-  .btn-cancel { background:none; border:1px solid #E2DDD4; color:#8C8579; padding:7px 15px; font-family:'DM Mono',monospace; font-size:0.7rem; cursor:pointer; }
-  .btn-cancel:hover { border-color:#8C8579; color:#1A1814; }
+  .phase-task-row input { flex:1; background:var(--bg); border:1px solid var(--border); font-family:'DM Mono',monospace; font-size:0.7rem; padding:4px 6px; color:var(--text); outline:none; }
+  .remove-btn { background:none; border:none; font-size:0.9rem; cursor:pointer; color:var(--text-muted); padding:3px; line-height:1; }
+  .remove-btn:hover { color:var(--accent); }
+  .small-link { background:none; border:none; font-family:'DM Mono',monospace; font-size:0.66rem; color:var(--text-muted); cursor:pointer; padding:3px 0; text-decoration:underline; }
+  .small-link:hover { color:var(--text); }
+  .modal-footer { display:flex; align-items:center; justify-content:space-between; margin-top:20px; padding-top:14px; border-top:1px solid var(--border); gap:10px; flex-wrap:wrap; }
+  .modal-keyhints { display:flex; gap:12px; flex-wrap:wrap; align-items:center; font-size:0.58rem; color:var(--text-muted); }
+  .modal-keyhints kbd { color:var(--text); background:var(--modal-kbd-bg); padding:1px 4px; border:1px solid var(--modal-kbd-border); font-family:'DM Mono',monospace; font-size:0.58rem; margin-right:2px; }
+  .btn-save { background:var(--border-strong); color:var(--bg); border:none; padding:7px 15px; font-family:'DM Mono',monospace; font-size:0.7rem; cursor:pointer; }
+  .btn-save:hover { opacity:0.85; }
+  .btn-cancel { background:none; border:1px solid var(--border); color:var(--text-muted); padding:7px 15px; font-family:'DM Mono',monospace; font-size:0.7rem; cursor:pointer; }
+  .btn-cancel:hover { border-color:var(--text-muted); color:var(--text); }
 
-  .keyhint-bar { position:fixed; bottom:0; left:0; right:0; background:#1A1814; color:#8C8579; font-family:'DM Mono',monospace; font-size:0.61rem; padding:6px 18px; display:flex; gap:14px; align-items:center; letter-spacing:0.03em; z-index:50; flex-wrap:wrap; }
-  .keyhint-bar kbd { color:#F5F0E8; background:#2E2A25; padding:1px 4px; border:1px solid #3A3530; font-family:'DM Mono',monospace; font-size:0.61rem; margin-right:2px; }
-  .keyhint-mode { color:#D4522A; font-size:0.64rem; letter-spacing:0.08em; margin-right:4px; }
-  .keyhint-sep { color:#3A3530; user-select:none; }
+  .keyhint-bar { position:fixed; bottom:0; left:0; right:0; background:var(--hint-bg); color:var(--hint-text); font-family:'DM Mono',monospace; font-size:0.61rem; padding:6px 18px; display:flex; gap:14px; align-items:center; letter-spacing:0.03em; z-index:50; flex-wrap:wrap; }
+  .keyhint-bar kbd { color:var(--hint-key); background:var(--hint-key-bg); padding:1px 4px; border:1px solid var(--hint-key-border); font-family:'DM Mono',monospace; font-size:0.61rem; margin-right:2px; }
+  .keyhint-mode { color:var(--accent); font-size:0.64rem; letter-spacing:0.08em; margin-right:4px; }
+  .keyhint-sep { color:var(--hint-key-border); user-select:none; }
 
-  .help-overlay { position:fixed; inset:0; background:rgba(26,24,20,0.7); display:flex; align-items:center; justify-content:center; z-index:150; padding:24px; }
-  .help-box { background:#F5F0E8; border:1.5px solid #1A1814; padding:26px; max-width:520px; width:100%; max-height:80vh; overflow-y:auto; }
+  .help-overlay { position:fixed; inset:0; background:var(--overlay-bg-heavy); display:flex; align-items:center; justify-content:center; z-index:150; padding:24px; }
+  .help-box { background:var(--bg); border:1.5px solid var(--border-strong); padding:26px; max-width:520px; width:100%; max-height:80vh; overflow-y:auto; }
   .help-title { font-size:1.15rem; margin-bottom:18px; }
   .help-section { margin-bottom:16px; }
-  .help-section-title { font-size:0.6rem; color:#8C8579; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:7px; border-bottom:1px solid #E2DDD4; padding-bottom:4px; }
+  .help-section-title { font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:7px; border-bottom:1px solid var(--border); padding-bottom:4px; }
   .help-row { display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:0.7rem; }
-  .help-row kbd { background:#E8E3D8; border:1px solid #C8C3BA; padding:1px 5px; font-family:'DM Mono',monospace; font-size:0.66rem; }
-  .help-close { margin-top:14px; font-size:0.68rem; color:#8C8579; text-align:center; }
+  .help-row kbd { background:var(--modal-kbd-bg); border:1px solid var(--modal-kbd-border); padding:1px 5px; font-family:'DM Mono',monospace; font-size:0.66rem; }
+  .help-close { margin-top:14px; font-size:0.68rem; color:var(--text-muted); text-align:center; }
 
-  .empty { text-align:center; color:#8C8579; font-size:0.78rem; padding:60px 0; }
-  .empty kbd { background:#E2DDD4; padding:1px 5px; font-family:'DM Mono',monospace; }
-  .checklist-footer { text-align:center; color:#8C8579; font-size:0.66rem; margin-top:36px; border-top:1px solid #E2DDD4; padding-top:13px; }
-  .err-msg { font-size:0.66rem; color:#D4522A; }
+  .empty { text-align:center; color:var(--text-muted); font-size:0.78rem; padding:60px 0; }
+  .empty kbd { background:var(--border); padding:1px 5px; font-family:'DM Mono',monospace; }
+  .checklist-footer { text-align:center; color:var(--text-muted); font-size:0.66rem; margin-top:36px; border-top:1px solid var(--border); padding-top:13px; }
+  .err-msg { font-size:0.66rem; color:var(--accent); }
 `;
 
 // ──── KeyHintBar ──────────────────────────────────────────────────────────────
@@ -245,8 +437,13 @@ function KeyHintBar({ hints, mode = "NORMAL" }) {
       <span className="keyhint-sep">|</span>
       {hints.map((h, i) => (
         <span key={i}>
-          <kbd>{h.key}</kbd>{h.label}
-          {i < hints.length - 1 && <span className="keyhint-sep" style={{marginLeft:12}}>·</span>}
+          <kbd>{h.key}</kbd>
+          {h.label}
+          {i < hints.length - 1 && (
+            <span className="keyhint-sep" style={{ marginLeft: 12 }}>
+              ·
+            </span>
+          )}
         </span>
       ))}
     </div>
@@ -257,48 +454,81 @@ function KeyHintBar({ hints, mode = "NORMAL" }) {
 
 function HelpOverlay({ onClose }) {
   useEffect(() => {
-    const h = (e) => { if (e.key === "Escape" || e.key === "?") onClose(); };
+    const h = (e) => {
+      if (e.key === "Escape" || e.key === "?") onClose();
+    };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
 
   const sections = [
-    { title: "Home", rows: [
-      ["j/k · ↑↓", "navigate cards"], ["h/l · ←→", "navigate grid columns"],
-      ["Enter", "open checklist"], ["n", "new checklist"], ["i", "import JSON"],
-      ["/", "search"], ["v", "cycle view (grid / list / compact)"],
-      ["Tab", "cycle filter (active / all / archived)"], ["?", "this help"],
-    ]},
-    { title: "Detail", rows: [
-      ["j/k", "move between tasks"], ["V", "enter visual mode (multi-select)"], ["J/K", "reorder task(s) up/down"], ["H/L", "move task(s) to prev/next phase"], ["x · Enter", "toggle task(s) done"],
-      ["e", "edit checklist"], ["a", "archive / unarchive"],
-      ["P", "toggle whole phase done"], ["E", "export JSON"], ["d", "delete (then y / n)"],
-      ["b · Esc", "go back"], ["g / G", "jump top / bottom"], ["?", "this help"],
-    ]},
-    { title: "Modal", rows: [
-      ["Tab", "next field"], ["Ctrl+Enter", "save"],
-      ["Ctrl+P", "add phase"], ["Ctrl+T", "add task to focused phase"],
-      ["Enter", "next task (inside task input)"],
-      ["Backspace", "delete empty task row"], ["Esc", "close"],
-    ]},
+    {
+      title: "Home",
+      rows: [
+        ["j/k · ↑↓", "navigate cards"],
+        ["h/l · ←→", "navigate grid columns"],
+        ["Enter", "open checklist"],
+        ["n", "new checklist"],
+        ["i", "import JSON"],
+        ["/", "search"],
+        ["v", "cycle view (grid / list / compact)"],
+        ["Tab", "cycle filter (active / all / archived)"],
+        ["?", "this help"],
+      ],
+    },
+    {
+      title: "Detail",
+      rows: [
+        ["j/k", "move between tasks"],
+        ["V", "enter visual mode (multi-select)"],
+        ["J/K", "reorder task(s) up/down"],
+        ["H/L", "move task(s) to prev/next phase"],
+        ["x · Enter", "toggle task(s) done"],
+        ["e", "edit checklist"],
+        ["a", "archive / unarchive"],
+        ["P", "toggle whole phase done"],
+        ["E", "export JSON"],
+        ["d", "delete (then y / n)"],
+        ["b · Esc", "go back"],
+        ["g / G", "jump top / bottom"],
+        ["?", "this help"],
+      ],
+    },
+    {
+      title: "Modal",
+      rows: [
+        ["Tab", "next field"],
+        ["Ctrl+Enter", "save"],
+        ["Ctrl+P", "add phase"],
+        ["Ctrl+T", "add task to focused phase"],
+        ["Enter", "next task (inside task input)"],
+        ["Backspace", "delete empty task row"],
+        ["Esc", "close"],
+      ],
+    },
   ];
 
   return (
-    <div className="help-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div
+      className="help-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="help-box">
         <h2 className="help-title serif">Keyboard Shortcuts</h2>
-        {sections.map(s => (
+        {sections.map((s) => (
           <div className="help-section" key={s.title}>
             <div className="help-section-title">{s.title}</div>
             {s.rows.map(([key, label]) => (
               <div className="help-row" key={key}>
-                <span style={{color:"#8C8579"}}>{label}</span>
+                <span style={{ color: "#8C8579" }}>{label}</span>
                 <kbd>{key}</kbd>
               </div>
             ))}
           </div>
         ))}
-        <div className="help-close">press <kbd>Esc</kbd> or <kbd>?</kbd> to close</div>
+        <div className="help-close">
+          press <kbd>Esc</kbd> or <kbd>?</kbd> to close
+        </div>
       </div>
     </div>
   );
@@ -311,34 +541,72 @@ function Modal({ initial, onSave, onClose }) {
   const [title, setTitle] = useState(initial?.title || "");
   const [desc, setDesc] = useState(initial?.description || "");
   const [color, setColor] = useState(initial?.color || "#D4522A");
-  const [duration, setDuration] = useState(initial?.total_days ? `~${initial.total_days} days` : "");
+  const [duration, setDuration] = useState(
+    initial?.total_days ? `~${initial.total_days} days` : "",
+  );
   const [phases, setPhases] = useState(
-    initial?.phases?.map(p => ({
-      id: p.id, label: p.label, title: p.title, duration: p.duration,
-      tasks: p.tasks.map(t => ({ id: t.id, text: t.text, tag: t.tag || "", done: t.done }))
-    })) || [{ id: uid(), label: "Phase 0", title: "", duration: "", tasks: [{ id: uid(), text: "", tag: "", done: false }] }]
+    initial?.phases?.map((p) => ({
+      id: p.id,
+      label: p.label,
+      title: p.title,
+      duration: p.duration,
+      tasks: p.tasks.map((t) => ({
+        id: t.id,
+        text: t.text,
+        tag: t.tag || "",
+        done: t.done,
+      })),
+    })) || [
+      {
+        id: uid(),
+        label: "Phase 0",
+        title: "",
+        duration: "",
+        tasks: [{ id: uid(), text: "", tag: "", done: false }],
+      },
+    ],
   );
   const lastPhaseId = useRef(phases[phases.length - 1]?.id);
 
   const addPhase = () => {
-    const np = { id: uid(), label: `Phase ${phases.length}`, title: "", duration: "", tasks: [{ id: uid(), text: "", tag: "", done: false }] };
-    setPhases(p => [...p, np]);
+    const np = {
+      id: uid(),
+      label: `Phase ${phases.length}`,
+      title: "",
+      duration: "",
+      tasks: [{ id: uid(), text: "", tag: "", done: false }],
+    };
+    setPhases((p) => [...p, np]);
     lastPhaseId.current = np.id;
-    setTimeout(() => document.querySelector(".modal-phase:last-child .modal-phase-header input")?.focus(), 30);
+    setTimeout(
+      () =>
+        document
+          .querySelector(".modal-phase:last-child .modal-phase-header input")
+          ?.focus(),
+      30,
+    );
   };
-  const removePhase = (pid) => setPhases(p => p.filter(ph => ph.id !== pid));
-  const movePhase = (pid, dir) => setPhases(p => {
-    const idx = p.findIndex(ph => ph.id === pid);
-    const to = dir === "up" ? idx - 1 : idx + 1;
-    if (to < 0 || to >= p.length) return p;
-    const arr = [...p];
-    [arr[idx], arr[to]] = [arr[to], arr[idx]];
-    return arr;
-  });
+  const removePhase = (pid) =>
+    setPhases((p) => p.filter((ph) => ph.id !== pid));
+  const movePhase = (pid, dir) =>
+    setPhases((p) => {
+      const idx = p.findIndex((ph) => ph.id === pid);
+      const to = dir === "up" ? idx - 1 : idx + 1;
+      if (to < 0 || to >= p.length) return p;
+      const arr = [...p];
+      [arr[idx], arr[to]] = [arr[to], arr[idx]];
+      return arr;
+    });
   const insertPhaseAfter = (pid) => {
-    const newPh = { id: uid(), label: `Phase ${phases.length}`, title: "", duration: "", tasks: [{ id: uid(), text: "", tag: "", done: false }] };
-    setPhases(p => {
-      const idx = p.findIndex(ph => ph.id === pid);
+    const newPh = {
+      id: uid(),
+      label: `Phase ${phases.length}`,
+      title: "",
+      duration: "",
+      tasks: [{ id: uid(), text: "", tag: "", done: false }],
+    };
+    setPhases((p) => {
+      const idx = p.findIndex((ph) => ph.id === pid);
       const arr = [...p];
       arr.splice(idx + 1, 0, newPh);
       return arr;
@@ -346,122 +614,325 @@ function Modal({ initial, onSave, onClose }) {
     lastPhaseId.current = newPh.id;
     setTimeout(() => {
       const all = document.querySelectorAll(".modal-phase");
-      const idx = phases.findIndex(ph => ph.id === pid);
+      const idx = phases.findIndex((ph) => ph.id === pid);
       const next = all[idx + 1];
       if (next) next.querySelector(".modal-phase-header input")?.focus();
     }, 30);
   };
-  const updatePhaseField = (pid, f, v) => setPhases(p => p.map(ph => ph.id === pid ? {...ph,[f]:v} : ph));
+  const updatePhaseField = (pid, f, v) =>
+    setPhases((p) => p.map((ph) => (ph.id === pid ? { ...ph, [f]: v } : ph)));
   const addTask = (pid) => {
-    setPhases(p => p.map(ph => ph.id === pid ? {...ph, tasks:[...ph.tasks,{id:uid(),text:"",tag:"",done:false}]} : ph));
+    setPhases((p) =>
+      p.map((ph) =>
+        ph.id === pid
+          ? {
+              ...ph,
+              tasks: [
+                ...ph.tasks,
+                { id: uid(), text: "", tag: "", done: false },
+              ],
+            }
+          : ph,
+      ),
+    );
     setTimeout(() => {
       const el = document.querySelector(`.modal-phase[data-id="${pid}"]`);
-      if (el) { const ins = el.querySelectorAll(".phase-task-row input"); ins[ins.length-1]?.focus(); }
+      if (el) {
+        const ins = el.querySelectorAll(".phase-task-row input");
+        ins[ins.length - 1]?.focus();
+      }
     }, 30);
   };
-  const removeTask = (pid, tid) => setPhases(p => p.map(ph => ph.id === pid ? {...ph,tasks:ph.tasks.filter(t=>t.id!==tid)} : ph));
-  const updateTask = (pid, tid, v) => setPhases(p => p.map(ph => ph.id === pid ? {...ph,tasks:ph.tasks.map(t=>t.id===tid?{...t,text:v}:t)} : ph));
+  const removeTask = (pid, tid) =>
+    setPhases((p) =>
+      p.map((ph) =>
+        ph.id === pid
+          ? { ...ph, tasks: ph.tasks.filter((t) => t.id !== tid) }
+          : ph,
+      ),
+    );
+  const updateTask = (pid, tid, v) =>
+    setPhases((p) =>
+      p.map((ph) =>
+        ph.id === pid
+          ? {
+              ...ph,
+              tasks: ph.tasks.map((t) =>
+                t.id === tid ? { ...t, text: v } : t,
+              ),
+            }
+          : ph,
+      ),
+    );
 
   const handleSave = () => {
     if (!title.trim()) return;
     onSave({
       id: initial?.id || uid(),
-      emoji, title: title.trim(), description: desc.trim(),
-      color, total_days: parseInt(duration) || null,
-      created_at: initial?.created_at || new Date().toISOString().slice(0,10),
+      emoji,
+      title: title.trim(),
+      description: desc.trim(),
+      color,
+      total_days: parseInt(duration) || null,
+      created_at: initial?.created_at || new Date().toISOString().slice(0, 10),
       archived: initial?.archived || false,
-      phases: phases.map(ph => ({
-        id: ph.id, label: ph.label, title: ph.title, duration: ph.duration,
-        tasks: ph.tasks.filter(t => t.text.trim()).map(t => ({
-          id: t.id, text: t.text, done: t.done,
-          ...(t.tag ? {tag: t.tag} : {}),
-          subtasks: t.subtasks || [], note: t.note || ""
+      phases: phases
+        .map((ph) => ({
+          id: ph.id,
+          label: ph.label,
+          title: ph.title,
+          duration: ph.duration,
+          tasks: ph.tasks
+            .filter((t) => t.text.trim())
+            .map((t) => ({
+              id: t.id,
+              text: t.text,
+              done: t.done,
+              ...(t.tag ? { tag: t.tag } : {}),
+              subtasks: t.subtasks || [],
+              note: t.note || "",
+            })),
         }))
-      })).filter(ph => ph.title || ph.tasks.length)
+        .filter((ph) => ph.title || ph.tasks.length),
     });
   };
 
   useEffect(() => {
     const h = (e) => {
-      if (e.key === "Escape") { onClose(); return; }
-      if ((e.ctrlKey||e.metaKey) && e.key === "Enter") { e.preventDefault(); handleSave(); return; }
-      if ((e.ctrlKey||e.metaKey) && e.key === "p") { e.preventDefault(); addPhase(); return; }
-      if ((e.ctrlKey||e.metaKey) && e.key === "t") { e.preventDefault(); if (lastPhaseId.current) addTask(lastPhaseId.current); return; }
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "p") {
+        e.preventDefault();
+        addPhase();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "t") {
+        e.preventDefault();
+        if (lastPhaseId.current) addTask(lastPhaseId.current);
+        return;
+      }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [onClose, phases]);
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div
+      className="modal-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="modal">
-        <h2 className="modal-title serif">{initial ? "Edit Checklist" : "New Checklist"}</h2>
-        <div style={{display:"grid",gridTemplateColumns:"68px 1fr",gap:10,marginBottom:13}}>
-          <div className="field" style={{marginBottom:0}}>
+        <h2 className="modal-title serif">
+          {initial ? "Edit Checklist" : "New Checklist"}
+        </h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "68px 1fr",
+            gap: 10,
+            marginBottom: 13,
+          }}
+        >
+          <div className="field" style={{ marginBottom: 0 }}>
             <label>Emoji</label>
-            <input value={emoji} onChange={e=>setEmoji(e.target.value)} maxLength={4} style={{textAlign:"center",fontSize:"1.3rem"}} />
+            <input
+              value={emoji}
+              onChange={(e) => setEmoji(e.target.value)}
+              maxLength={4}
+              style={{ textAlign: "center", fontSize: "1.3rem" }}
+            />
           </div>
-          <div className="field" style={{marginBottom:0}}>
+          <div className="field" style={{ marginBottom: 0 }}>
             <label>Title</label>
-            <input autoFocus value={title} onChange={e=>setTitle(e.target.value)} placeholder="My Checklist" />
+            <input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="My Checklist"
+            />
           </div>
         </div>
         <div className="field">
           <label>Description</label>
-          <textarea value={desc} onChange={e=>setDesc(e.target.value)} placeholder="What's this for?" />
+          <textarea
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            placeholder="What's this for?"
+          />
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:13}}>
-          <div className="field" style={{marginBottom:0}}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+            marginBottom: 13,
+          }}
+        >
+          <div className="field" style={{ marginBottom: 0 }}>
             <label>Duration</label>
-            <input value={duration} onChange={e=>setDuration(e.target.value)} placeholder="~12 days" />
+            <input
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              placeholder="~12 days"
+            />
           </div>
-          <div className="field" style={{marginBottom:0}}>
+          <div className="field" style={{ marginBottom: 0 }}>
             <label>Accent Color</label>
             <div className="color-swatches">
-              {ACCENT_COLORS.map(c => <div key={c} className={`swatch${color===c?" selected":""}`} style={{background:c}} onClick={()=>setColor(c)} />)}
+              {ACCENT_COLORS.map((c) => (
+                <div
+                  key={c}
+                  className={`swatch${color === c ? " selected" : ""}`}
+                  style={{ background: c }}
+                  onClick={() => setColor(c)}
+                />
+              ))}
             </div>
           </div>
         </div>
         <div className="modal-phases">
-          <div style={{fontSize:"0.64rem",color:"#8C8579",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:7}}>Phases</div>
-          {phases.map(ph => (
+          <div
+            style={{
+              fontSize: "0.64rem",
+              color: "#8C8579",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: 7,
+            }}
+          >
+            Phases
+          </div>
+          {phases.map((ph) => (
             <div className="modal-phase" key={ph.id} data-id={ph.id}>
               <div className="modal-phase-header">
-                <input value={ph.label} onChange={e=>updatePhaseField(ph.id,"label",e.target.value)} placeholder="Phase 0" onFocus={()=>{lastPhaseId.current=ph.id;}} />
-                <input value={ph.title} onChange={e=>updatePhaseField(ph.id,"title",e.target.value)} placeholder="Title" onFocus={()=>{lastPhaseId.current=ph.id;}} />
-                <input value={ph.duration} onChange={e=>updatePhaseField(ph.id,"duration",e.target.value)} placeholder="2 days" onFocus={()=>{lastPhaseId.current=ph.id;}} />
-                <div style={{display:"flex",gap:2}}>
-                  <button className="remove-btn" title="Move up" onClick={()=>movePhase(ph.id,"up")}>↑</button>
-                  <button className="remove-btn" title="Move down" onClick={()=>movePhase(ph.id,"down")}>↓</button>
-                  <button className="remove-btn" onClick={()=>removePhase(ph.id)}>×</button>
+                <input
+                  value={ph.label}
+                  onChange={(e) =>
+                    updatePhaseField(ph.id, "label", e.target.value)
+                  }
+                  placeholder="Phase 0"
+                  onFocus={() => {
+                    lastPhaseId.current = ph.id;
+                  }}
+                />
+                <input
+                  value={ph.title}
+                  onChange={(e) =>
+                    updatePhaseField(ph.id, "title", e.target.value)
+                  }
+                  placeholder="Title"
+                  onFocus={() => {
+                    lastPhaseId.current = ph.id;
+                  }}
+                />
+                <input
+                  value={ph.duration}
+                  onChange={(e) =>
+                    updatePhaseField(ph.id, "duration", e.target.value)
+                  }
+                  placeholder="2 days"
+                  onFocus={() => {
+                    lastPhaseId.current = ph.id;
+                  }}
+                />
+                <div style={{ display: "flex", gap: 2 }}>
+                  <button
+                    className="remove-btn"
+                    title="Move up"
+                    onClick={() => movePhase(ph.id, "up")}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    className="remove-btn"
+                    title="Move down"
+                    onClick={() => movePhase(ph.id, "down")}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    className="remove-btn"
+                    onClick={() => removePhase(ph.id)}
+                  >
+                    ×
+                  </button>
                 </div>
               </div>
               <div className="phase-tasks">
-                {ph.tasks.map(t => (
+                {ph.tasks.map((t) => (
                   <div className="phase-task-row" key={t.id}>
-                    <input value={t.text} onChange={e=>updateTask(ph.id,t.id,e.target.value)} placeholder="Task description"
-                      onFocus={()=>{lastPhaseId.current=ph.id;}}
-                      onKeyDown={e=>{
-                        if (e.key==="Enter"){e.preventDefault();addTask(ph.id);}
-                        if (e.key==="Backspace"&&t.text===""){e.preventDefault();removeTask(ph.id,t.id);}
-                      }} />
-                    <button className="remove-btn" onClick={()=>removeTask(ph.id,t.id)}>×</button>
+                    <input
+                      value={t.text}
+                      onChange={(e) => updateTask(ph.id, t.id, e.target.value)}
+                      placeholder="Task description"
+                      onFocus={() => {
+                        lastPhaseId.current = ph.id;
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addTask(ph.id);
+                        }
+                        if (e.key === "Backspace" && t.text === "") {
+                          e.preventDefault();
+                          removeTask(ph.id, t.id);
+                        }
+                      }}
+                    />
+                    <button
+                      className="remove-btn"
+                      onClick={() => removeTask(ph.id, t.id)}
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
-                <button className="small-link" onClick={()=>addTask(ph.id)}>+ add task</button>
+                <button className="small-link" onClick={() => addTask(ph.id)}>
+                  + add task
+                </button>
               </div>
-              <button className="small-link" style={{marginTop:4,display:"block"}} onClick={()=>insertPhaseAfter(ph.id)}>+ insert phase below</button>
+              <button
+                className="small-link"
+                style={{ marginTop: 4, display: "block" }}
+                onClick={() => insertPhaseAfter(ph.id)}
+              >
+                + insert phase below
+              </button>
             </div>
           ))}
-          <button className="small-link" onClick={addPhase}>+ add phase at end</button>
+          <button className="small-link" onClick={addPhase}>
+            + add phase at end
+          </button>
         </div>
         <div className="modal-footer">
           <div className="modal-keyhints">
-            {[["Tab","next"],["Ctrl+↵","save"],["Ctrl+P","phase"],["Ctrl+T","task"],["Esc","close"]].map(([k,l])=><span key={k}><kbd>{k}</kbd>{l}</span>)}
+            {[
+              ["Tab", "next"],
+              ["Ctrl+↵", "save"],
+              ["Ctrl+P", "phase"],
+              ["Ctrl+T", "task"],
+              ["Esc", "close"],
+            ].map(([k, l]) => (
+              <span key={k}>
+                <kbd>{k}</kbd>
+                {l}
+              </span>
+            ))}
           </div>
-          <div style={{display:"flex",gap:8}}>
-            <button className="btn-cancel" onClick={onClose}>Cancel</button>
-            <button className="btn-save" onClick={handleSave}>Save</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="btn-save" onClick={handleSave}>
+              Save
+            </button>
           </div>
         </div>
       </div>
@@ -471,10 +942,17 @@ function Modal({ initial, onSave, onClose }) {
 
 // ──── Home ────────────────────────────────────────────────────────────────────
 
-const VIEWS = ["grid","list","compact"];
-const FILTERS = ["active","all","archived"];
+const VIEWS = ["grid", "list", "compact"];
+const FILTERS = ["active", "all", "archived"];
 
-function Home({ checklists, onSelect, onNew, onImport }) {
+function Home({
+  checklists,
+  onSelect,
+  onNew,
+  onImport,
+  scheme,
+  onCycleScheme,
+}) {
   const [focusIdx, setFocusIdx] = useState(0);
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -484,44 +962,92 @@ function Home({ checklists, onSelect, onNew, onImport }) {
   const fileInputRef = useRef(null);
   const searchRef = useRef(null);
 
-  const filtered = checklists.filter(cl => {
-    const mf = filter === "all" ? true : filter === "archived" ? cl.archived : !cl.archived;
-    const ms = !search || cl.title.toLowerCase().includes(search.toLowerCase()) || (cl.description||"").toLowerCase().includes(search.toLowerCase());
+  const filtered = checklists.filter((cl) => {
+    const mf =
+      filter === "all"
+        ? true
+        : filter === "archived"
+          ? cl.archived
+          : !cl.archived;
+    const ms =
+      !search ||
+      cl.title.toLowerCase().includes(search.toLowerCase()) ||
+      (cl.description || "").toLowerCase().includes(search.toLowerCase());
     return mf && ms;
   });
 
-  useEffect(() => { setFocusIdx(0); }, [filter, search, view]);
+  useEffect(() => {
+    setFocusIdx(0);
+  }, [filter, search, view]);
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0]; if (!file) return;
+    const file = e.target.files[0];
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
         const data = JSON.parse(ev.target.result);
         const items = Array.isArray(data) ? data : [data];
-        for (const item of items) { if (!item.title || !Array.isArray(item.phases)) throw new Error(); if (!item.id) item.id = uid(); }
-        onImport(items); setImportError("");
-      } catch { setImportError("Invalid JSON."); setTimeout(()=>setImportError(""),3000); }
+        for (const item of items) {
+          if (!item.title || !Array.isArray(item.phases)) throw new Error();
+          if (!item.id) item.id = uid();
+        }
+        onImport(items);
+        setImportError("");
+      } catch {
+        setImportError("Invalid JSON.");
+        setTimeout(() => setImportError(""), 3000);
+      }
     };
-    reader.readAsText(file); e.target.value="";
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   useEffect(() => {
     const h = (e) => {
-      if (showSearch) { if (e.key==="Escape"){setShowSearch(false);setSearch("");} return; }
-      if (document.activeElement.tagName==="INPUT") return;
-      if (e.key==="/") { e.preventDefault(); setShowSearch(true); setTimeout(()=>searchRef.current?.focus(),20); return; }
-      if (e.key==="j"||e.key==="ArrowDown") { e.preventDefault(); setFocusIdx(i=>Math.min(i+1,filtered.length-1)); }
-      else if (e.key==="k"||e.key==="ArrowUp") { e.preventDefault(); setFocusIdx(i=>Math.max(i-1,0)); }
-      else if (e.key==="l"||e.key==="ArrowRight") { e.preventDefault(); setFocusIdx(i=>Math.min(i+2,filtered.length-1)); }
-      else if (e.key==="h"||e.key==="ArrowLeft") { e.preventDefault(); setFocusIdx(i=>Math.max(i-2,0)); }
-      else if ((e.key==="Enter"||e.key===" ")&&filtered[focusIdx]) { e.preventDefault(); onSelect(filtered[focusIdx].id); }
-      else if (e.key==="n") { e.preventDefault(); onNew(); }
-      else if (e.key==="i") { e.preventDefault(); fileInputRef.current?.click(); }
-      else if (e.key==="v") { e.preventDefault(); setView(v=>VIEWS[(VIEWS.indexOf(v)+1)%VIEWS.length]); }
-      else if (e.key==="Tab") { e.preventDefault(); setFilter(f=>FILTERS[(FILTERS.indexOf(f)+1)%FILTERS.length]); }
-      else if (e.key==="g") setFocusIdx(0);
-      else if (e.key==="G") setFocusIdx(filtered.length-1);
+      if (showSearch) {
+        if (e.key === "Escape") {
+          setShowSearch(false);
+          setSearch("");
+        }
+        return;
+      }
+      if (document.activeElement.tagName === "INPUT") return;
+      if (e.key === "/") {
+        e.preventDefault();
+        setShowSearch(true);
+        setTimeout(() => searchRef.current?.focus(), 20);
+        return;
+      }
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.min(i + 1, filtered.length - 1));
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.max(i - 1, 0));
+      } else if (e.key === "l" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.min(i + 2, filtered.length - 1));
+      } else if (e.key === "h" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.max(i - 2, 0));
+      } else if ((e.key === "Enter" || e.key === " ") && filtered[focusIdx]) {
+        e.preventDefault();
+        onSelect(filtered[focusIdx].id);
+      } else if (e.key === "n") {
+        e.preventDefault();
+        onNew();
+      } else if (e.key === "i") {
+        e.preventDefault();
+        fileInputRef.current?.click();
+      } else if (e.key === "v") {
+        e.preventDefault();
+        setView((v) => VIEWS[(VIEWS.indexOf(v) + 1) % VIEWS.length]);
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        setFilter((f) => FILTERS[(FILTERS.indexOf(f) + 1) % FILTERS.length]);
+      } else if (e.key === "g") setFocusIdx(0);
+      else if (e.key === "G") setFocusIdx(filtered.length - 1);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -529,127 +1055,280 @@ function Home({ checklists, onSelect, onNew, onImport }) {
 
   const renderCard = (cl, idx) => {
     const { done, total } = getProgress(cl);
-    const pct = total ? (done/total)*100 : 0;
+    const pct = total ? (done / total) * 100 : 0;
     const accent = cl.color || "#D4522A";
     const isFocused = focusIdx === idx;
-    const onClick = () => { setFocusIdx(idx); onSelect(cl.id); };
+    const onClick = () => {
+      setFocusIdx(idx);
+      onSelect(cl.id);
+    };
     const onEnter = () => setFocusIdx(idx);
 
-    if (view === "compact") return (
-      <div key={cl.id} className={`compact-card${isFocused?" focused":""}${cl.archived?" card-archived":""}`} onClick={onClick} onMouseEnter={onEnter}>
-        <span className="compact-card-emoji">{cl.emoji}</span>
-        <span className="compact-card-title serif">{cl.title}</span>
-        <div className="progress-bar-bg" style={{width:70,flexShrink:0,marginBottom:0}}>
-          <div className="progress-bar-fill" style={{width:`${pct}%`,background:accent}} />
-        </div>
-        <span className="compact-progress-text">{done}/{total}</span>
-        {cl.archived && <span className="card-archived-badge">archived</span>}
-      </div>
-    );
-
-    if (view === "list") return (
-      <div key={cl.id} className={`list-card${isFocused?" focused":""}${cl.archived?" card-archived":""}`} onClick={onClick} onMouseEnter={onEnter}>
-        <span className="list-card-emoji">{cl.emoji}</span>
-        <div className="list-card-body">
-          <div className="list-card-title serif">{cl.title}</div>
-          {cl.description && <div className="list-card-desc">{cl.description}</div>}
-        </div>
-        <div className="list-card-right">
-          <div className="progress-bar-bg" style={{width:72}}>
-            <div className="progress-bar-fill" style={{width:`${pct}%`,background:accent}} />
+    if (view === "compact")
+      return (
+        <div
+          key={cl.id}
+          className={`compact-card${isFocused ? " focused" : ""}${cl.archived ? " card-archived" : ""}`}
+          onClick={onClick}
+          onMouseEnter={onEnter}
+        >
+          <span className="compact-card-emoji">{cl.emoji}</span>
+          <span className="compact-card-title serif">{cl.title}</span>
+          <div
+            className="progress-bar-bg"
+            style={{ width: 70, flexShrink: 0, marginBottom: 0 }}
+          >
+            <div
+              className="progress-bar-fill"
+              style={{ width: `${pct}%`, background: accent }}
+            />
           </div>
-          <span className="progress-label">{done}/{total}</span>
+          <span className="compact-progress-text">
+            {done}/{total}
+          </span>
           {cl.archived && <span className="card-archived-badge">archived</span>}
         </div>
-      </div>
-    );
+      );
+
+    if (view === "list")
+      return (
+        <div
+          key={cl.id}
+          className={`list-card${isFocused ? " focused" : ""}${cl.archived ? " card-archived" : ""}`}
+          onClick={onClick}
+          onMouseEnter={onEnter}
+        >
+          <span className="list-card-emoji">{cl.emoji}</span>
+          <div className="list-card-body">
+            <div className="list-card-title serif">{cl.title}</div>
+            {cl.description && (
+              <div className="list-card-desc">{cl.description}</div>
+            )}
+          </div>
+          <div className="list-card-right">
+            <div className="progress-bar-bg" style={{ width: 72 }}>
+              <div
+                className="progress-bar-fill"
+                style={{ width: `${pct}%`, background: accent }}
+              />
+            </div>
+            <span className="progress-label">
+              {done}/{total}
+            </span>
+            {cl.archived && (
+              <span className="card-archived-badge">archived</span>
+            )}
+          </div>
+        </div>
+      );
 
     return (
-      <div key={cl.id} className={`card${isFocused?" focused":""}${cl.archived?" card-archived":""}`} onClick={onClick} onMouseEnter={onEnter}>
+      <div
+        key={cl.id}
+        className={`card${isFocused ? " focused" : ""}${cl.archived ? " card-archived" : ""}`}
+        onClick={onClick}
+        onMouseEnter={onEnter}
+      >
         <div className="card-emoji">{cl.emoji}</div>
         <div className="card-title serif">{cl.title}</div>
         {cl.description && <div className="card-desc">{cl.description}</div>}
         <div className="progress-bar-bg">
-          <div className="progress-bar-fill" style={{width:`${pct}%`,background:accent}} />
+          <div
+            className="progress-bar-fill"
+            style={{ width: `${pct}%`, background: accent }}
+          />
         </div>
         <div className="card-meta">
-          <span className="progress-label">{done} / {total} complete</span>
-          {cl.total_days && <span className="card-duration">~{cl.total_days} days</span>}
+          <span className="progress-label">
+            {done} / {total} complete
+          </span>
+          {cl.total_days && (
+            <span className="card-duration">~{cl.total_days} days</span>
+          )}
           {cl.archived && <span className="card-archived-badge">archived</span>}
         </div>
       </div>
     );
   };
 
-  const wrapClass = view==="grid" ? "grid" : view==="list" ? "list-view" : "compact-view";
+  const wrapClass =
+    view === "grid" ? "grid" : view === "list" ? "list-view" : "compact-view";
 
   return (
     <div className="app">
-      <input ref={fileInputRef} type="file" accept=".json" style={{display:"none"}} onChange={handleFileChange} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
       <div className="header">
         <h1 className="serif">Checklists</h1>
         <div className="header-right">
           {importError && <span className="err-msg">{importError}</span>}
-          <button className="btn btn-muted" onClick={()=>fileInputRef.current?.click()}>↑ Import</button>
-          <button className="btn btn-dark" onClick={onNew}>+ New</button>
+          <div className="scheme-picker">
+            {SCHEMES.map((s) => (
+              <div
+                key={s.id}
+                className={`scheme-dot${s.id === scheme?.id ? " active" : ""}`}
+                style={{
+                  background: s.bg,
+                  border:
+                    s.id === scheme?.id
+                      ? `2px solid ${s.borderStrong}`
+                      : `2px solid ${s.border}`,
+                }}
+                title={s.name}
+                onClick={() => onCycleScheme(s)}
+              />
+            ))}
+          </div>
+          <button
+            className="btn btn-muted"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            ↑ Import
+          </button>
+          <button className="btn btn-dark" onClick={onNew}>
+            + New
+          </button>
         </div>
       </div>
 
-      <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:16,flexWrap:"wrap"}}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          alignItems: "center",
+          marginBottom: 16,
+          flexWrap: "wrap",
+        }}
+      >
         <div className="filter-tabs">
-          {FILTERS.map(f=><button key={f} className={`filter-tab${filter===f?" active":""}`} onClick={()=>setFilter(f)}>{f}</button>)}
+          {FILTERS.map((f) => (
+            <button
+              key={f}
+              className={`filter-tab${filter === f ? " active" : ""}`}
+              onClick={() => setFilter(f)}
+            >
+              {f}
+            </button>
+          ))}
         </div>
         <div className="view-toggle">
           <span className="view-toggle-label">view</span>
-          {VIEWS.map(v=><button key={v} className={`view-btn${view===v?" active":""}`} onClick={()=>setView(v)}>{v}</button>)}
+          {VIEWS.map((v) => (
+            <button
+              key={v}
+              className={`view-btn${view === v ? " active" : ""}`}
+              onClick={() => setView(v)}
+            >
+              {v}
+            </button>
+          ))}
         </div>
       </div>
 
       {showSearch && (
         <div className="search-bar">
-          <input ref={searchRef} className="search-input" placeholder="Search checklists..." value={search}
-            onChange={e=>setSearch(e.target.value)}
-            onKeyDown={e=>{ if(e.key==="Escape"){setShowSearch(false);setSearch("");} }} />
-          <button className="search-clear" onClick={()=>{setShowSearch(false);setSearch("");}}>×</button>
+          <input
+            ref={searchRef}
+            className="search-input"
+            placeholder="Search checklists..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setShowSearch(false);
+                setSearch("");
+              }
+            }}
+          />
+          <button
+            className="search-clear"
+            onClick={() => {
+              setShowSearch(false);
+              setSearch("");
+            }}
+          >
+            ×
+          </button>
         </div>
       )}
 
       {filtered.length === 0 ? (
         <div className="empty">
-          {search ? `No results for "${search}"` : filter==="archived" ? "No archived checklists." : <>No checklists yet. Press <kbd>n</kbd> to create one.</>}
+          {search ? (
+            `No results for "${search}"`
+          ) : filter === "archived" ? (
+            "No archived checklists."
+          ) : (
+            <>
+              No checklists yet. Press <kbd>n</kbd> to create one.
+            </>
+          )}
         </div>
       ) : (
-        <div className={wrapClass}>{filtered.map((cl,i)=>renderCard(cl,i))}</div>
+        <div className={wrapClass}>
+          {filtered.map((cl, i) => renderCard(cl, i))}
+        </div>
       )}
 
-      <KeyHintBar hints={showSearch ? [{key:"Esc",label:"close search"}] : [
-        {key:"j/k",label:"nav"},{key:"Enter",label:"open"},{key:"/",label:"search"},
-        {key:"n",label:"new"},{key:"i",label:"import"},{key:"v",label:`view:${view}`},
-        {key:"Tab",label:`filter:${filter}`},{key:"?",label:"help"},
-      ]} />
+      <KeyHintBar
+        hints={
+          showSearch
+            ? [{ key: "Esc", label: "close search" }]
+            : [
+                { key: "j/k", label: "nav" },
+                { key: "Enter", label: "open" },
+                { key: "/", label: "search" },
+                { key: "n", label: "new" },
+                { key: "i", label: "import" },
+                { key: "v", label: `view:${view}` },
+                { key: "Tab", label: `filter:${filter}` },
+                { key: "T", label: "theme" },
+                { key: "?", label: "help" },
+              ]
+        }
+      />
     </div>
   );
 }
 
 // ──── Detail ──────────────────────────────────────────────────────────────────
 
-function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onExport, modalOpen }) {
+function Detail({
+  checklist,
+  onChange,
+  onBack,
+  onEdit,
+  onDelete,
+  onArchive,
+  onExport,
+  modalOpen,
+}) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addingTask, setAddingTask] = useState(null);
   const [newTaskText, setNewTaskText] = useState("");
 
   const [showConfetti, setShowConfetti] = useState(false);
   const prevDone = useRef(null);
-  const [ddPending, setDdPending] = useState(false);   // waiting for second d
+  const [ddPending, setDdPending] = useState(false); // waiting for second d
   const [confirmTaskDelete, setConfirmTaskDelete] = useState(false); // show y/n
   const ddTimer = useRef(null);
 
   const accent = checklist.color || "#D4522A";
   const { done, total } = getProgress(checklist);
-  const pct = total ? (done/total)*100 : 0;
+  const pct = total ? (done / total) * 100 : 0;
 
   useEffect(() => {
-    if (prevDone.current !== null && prevDone.current < total && done === total && total > 0) {
+    if (
+      prevDone.current !== null &&
+      prevDone.current < total &&
+      done === total &&
+      total > 0
+    ) {
       setShowConfetti(true);
       // Haptic feedback — supported on iOS Safari and Android, silently ignored elsewhere
       if (navigator.vibrate) {
@@ -659,36 +1338,57 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
     prevDone.current = done;
   }, [done, total]);
 
-  const allItems = checklist.phases.flatMap(ph => [
-    ...ph.tasks.map(t => ({type:"task",phaseId:ph.id,taskId:t.id})),
-    {type:"add",phaseId:ph.id},
+  const allItems = checklist.phases.flatMap((ph) => [
+    ...ph.tasks.map((t) => ({ type: "task", phaseId: ph.id, taskId: t.id })),
+    { type: "add", phaseId: ph.id },
   ]);
   const [focusIdx, setFocusIdx] = useState(0);
   const focusRef = useRef(null);
 
-  useEffect(() => { if (focusRef.current) focusRef.current.scrollIntoView({block:"nearest",behavior:"smooth"}); }, [focusIdx]);
+  useEffect(() => {
+    if (focusRef.current)
+      focusRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [focusIdx]);
 
   const toggleTask = (phaseId, taskId) => {
-    onChange({...checklist, phases: checklist.phases.map(ph => ph.id!==phaseId ? ph : {
-      ...ph, tasks: ph.tasks.map(t => t.id!==taskId ? t : {...t,done:!t.done})
-    })});
+    onChange({
+      ...checklist,
+      phases: checklist.phases.map((ph) =>
+        ph.id !== phaseId
+          ? ph
+          : {
+              ...ph,
+              tasks: ph.tasks.map((t) =>
+                t.id !== taskId ? t : { ...t, done: !t.done },
+              ),
+            },
+      ),
+    });
   };
 
   const togglePhase = (phaseId) => {
-    const phase = checklist.phases.find(ph => ph.id === phaseId);
+    const phase = checklist.phases.find((ph) => ph.id === phaseId);
     if (!phase) return;
-    const allDone = phase.tasks.every(t => t.done);
-    onChange({...checklist, phases: checklist.phases.map(ph => ph.id!==phaseId ? ph : {
-      ...ph, tasks: ph.tasks.map(t => ({...t, done: !allDone}))
-    })});
+    const allDone = phase.tasks.every((t) => t.done);
+    onChange({
+      ...checklist,
+      phases: checklist.phases.map((ph) =>
+        ph.id !== phaseId
+          ? ph
+          : {
+              ...ph,
+              tasks: ph.tasks.map((t) => ({ ...t, done: !allDone })),
+            },
+      ),
+    });
   };
 
   // ── Move task: within phase (up/down) or across phases (prev/next) ──
   const moveTask = (taskId, fromPhaseId, dir) => {
     const phases = checklist.phases;
-    const phaseIdx = phases.findIndex(p => p.id === fromPhaseId);
+    const phaseIdx = phases.findIndex((p) => p.id === fromPhaseId);
     const phase = phases[phaseIdx];
-    const taskIdx = phase.tasks.findIndex(t => t.id === taskId);
+    const taskIdx = phase.tasks.findIndex((t) => t.id === taskId);
     const task = phase.tasks[taskIdx];
 
     let newPhases;
@@ -698,27 +1398,40 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
       const tasks = [...phase.tasks];
       tasks.splice(taskIdx, 1);
       tasks.splice(newIdx, 0, task);
-      newPhases = phases.map(p => p.id !== fromPhaseId ? p : {...p, tasks});
+      newPhases = phases.map((p) =>
+        p.id !== fromPhaseId ? p : { ...p, tasks },
+      );
     } else {
       // Move to prev/next phase
       const toPhaseIdx = dir === "left" ? phaseIdx - 1 : phaseIdx + 1;
       if (toPhaseIdx < 0 || toPhaseIdx >= phases.length) return;
       const toPhase = phases[toPhaseIdx];
       newPhases = phases.map((p, i) => {
-        if (p.id === fromPhaseId) return {...p, tasks: p.tasks.filter(t => t.id !== taskId)};
-        if (i === toPhaseIdx) return {...p, tasks: dir === "left" ? [...p.tasks, task] : [task, ...p.tasks]};
+        if (p.id === fromPhaseId)
+          return { ...p, tasks: p.tasks.filter((t) => t.id !== taskId) };
+        if (i === toPhaseIdx)
+          return {
+            ...p,
+            tasks: dir === "left" ? [...p.tasks, task] : [task, ...p.tasks],
+          };
         return p;
       });
     }
-    onChange({...checklist, phases: newPhases});
+    onChange({ ...checklist, phases: newPhases });
 
     // After move, update focusIdx to follow the task
     setTimeout(() => {
-      const newAllItems = newPhases.flatMap(ph => [
-        ...ph.tasks.map(t => ({type:"task", phaseId:ph.id, taskId:t.id})),
-        {type:"add", phaseId:ph.id},
+      const newAllItems = newPhases.flatMap((ph) => [
+        ...ph.tasks.map((t) => ({
+          type: "task",
+          phaseId: ph.id,
+          taskId: t.id,
+        })),
+        { type: "add", phaseId: ph.id },
       ]);
-      const newIdx = newAllItems.findIndex(it => it.type==="task" && it.taskId===taskId);
+      const newIdx = newAllItems.findIndex(
+        (it) => it.type === "task" && it.taskId === taskId,
+      );
       if (newIdx !== -1) setFocusIdx(newIdx);
     }, 0);
   };
@@ -756,62 +1469,90 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
 
   // Get ordered list of selected tasks with their phase info
   const getSelectedTasks = () =>
-    allItems.filter(it => it.type === "task" && selected.has(it.taskId));
+    allItems.filter((it) => it.type === "task" && selected.has(it.taskId));
 
   // Move all selected tasks together
   const moveSelected = (dir) => {
     const sel = getSelectedTasks();
     if (!sel.length) return;
-    let phases = checklist.phases.map(ph => ({...ph, tasks: [...ph.tasks]}));
+    let phases = checklist.phases.map((ph) => ({
+      ...ph,
+      tasks: [...ph.tasks],
+    }));
 
     if (dir === "up") {
       // Move each selected task up within its phase, top to bottom order
-      for (const {taskId, phaseId} of sel) {
-        const ph = phases.find(p => p.id === phaseId);
-        const idx = ph.tasks.findIndex(t => t.id === taskId);
+      for (const { taskId, phaseId } of sel) {
+        const ph = phases.find((p) => p.id === phaseId);
+        const idx = ph.tasks.findIndex((t) => t.id === taskId);
         if (idx <= 0) return; // blocked — one of them is already at top
         const task = ph.tasks.splice(idx, 1)[0];
         ph.tasks.splice(idx - 1, 0, task);
       }
     } else if (dir === "down") {
       // Process bottom to top so indices don't shift
-      for (const {taskId, phaseId} of [...sel].reverse()) {
-        const ph = phases.find(p => p.id === phaseId);
-        const idx = ph.tasks.findIndex(t => t.id === taskId);
+      for (const { taskId, phaseId } of [...sel].reverse()) {
+        const ph = phases.find((p) => p.id === phaseId);
+        const idx = ph.tasks.findIndex((t) => t.id === taskId);
         if (idx >= ph.tasks.length - 1) return;
         const task = ph.tasks.splice(idx, 1)[0];
         ph.tasks.splice(idx + 1, 0, task);
       }
     } else if (dir === "left" || dir === "right") {
-      const taskIds = new Set(sel.map(s => s.taskId));
+      const taskIds = new Set(sel.map((s) => s.taskId));
       const fromPhaseId = sel[0].phaseId;
       // Only allow if all selected are in the same phase
-      if (sel.some(s => s.phaseId !== fromPhaseId)) return;
-      const fromPhaseIdx = phases.findIndex(p => p.id === fromPhaseId);
+      if (sel.some((s) => s.phaseId !== fromPhaseId)) return;
+      const fromPhaseIdx = phases.findIndex((p) => p.id === fromPhaseId);
       const toPhaseIdx = dir === "left" ? fromPhaseIdx - 1 : fromPhaseIdx + 1;
       if (toPhaseIdx < 0 || toPhaseIdx >= phases.length) return;
-      const movingTasks = phases[fromPhaseIdx].tasks.filter(t => taskIds.has(t.id));
-      phases[fromPhaseIdx].tasks = phases[fromPhaseIdx].tasks.filter(t => !taskIds.has(t.id));
-      if (dir === "left") phases[toPhaseIdx].tasks = [...phases[toPhaseIdx].tasks, ...movingTasks];
-      else phases[toPhaseIdx].tasks = [...movingTasks, ...phases[toPhaseIdx].tasks];
+      const movingTasks = phases[fromPhaseIdx].tasks.filter((t) =>
+        taskIds.has(t.id),
+      );
+      phases[fromPhaseIdx].tasks = phases[fromPhaseIdx].tasks.filter(
+        (t) => !taskIds.has(t.id),
+      );
+      if (dir === "left")
+        phases[toPhaseIdx].tasks = [
+          ...phases[toPhaseIdx].tasks,
+          ...movingTasks,
+        ];
+      else
+        phases[toPhaseIdx].tasks = [
+          ...movingTasks,
+          ...phases[toPhaseIdx].tasks,
+        ];
     }
 
-    onChange({...checklist, phases});
+    onChange({ ...checklist, phases });
 
     // Update focusIdx and selection to follow moved tasks
     setTimeout(() => {
-      const newAllItems = phases.flatMap(ph => [
-        ...ph.tasks.map(t => ({type:"task", phaseId:ph.id, taskId:t.id})),
-        {type:"add", phaseId:ph.id},
+      const newAllItems = phases.flatMap((ph) => [
+        ...ph.tasks.map((t) => ({
+          type: "task",
+          phaseId: ph.id,
+          taskId: t.id,
+        })),
+        { type: "add", phaseId: ph.id },
       ]);
       // Find the new range of selected items
       const indices = newAllItems
-        .map((it, i) => (it.type==="task" && selected.has(it.taskId)) ? i : -1)
-        .filter(i => i !== -1);
+        .map((it, i) =>
+          it.type === "task" && selected.has(it.taskId) ? i : -1,
+        )
+        .filter((i) => i !== -1);
       if (indices.length) {
-        const newFocus = dir === "up" || dir === "left" ? indices[0] : indices[indices.length-1];
+        const newFocus =
+          dir === "up" || dir === "left"
+            ? indices[0]
+            : indices[indices.length - 1];
         setFocusIdx(newFocus);
-        setVisualAnchor(dir === "up" || dir === "left" ? indices[indices.length-1] : indices[0]);
+        setVisualAnchor(
+          dir === "up" || dir === "left"
+            ? indices[indices.length - 1]
+            : indices[0],
+        );
       }
     }, 0);
   };
@@ -820,95 +1561,170 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
   const dragTask = useRef(null); // {taskId, phaseId} or {selectedIds, phaseId} for multi
   const [dragOver, setDragOver] = useState(null);
 
-
-
   const deleteTask = () => {
     if (visualMode && selected.size > 0) {
       // Delete all selected tasks
       const ids = selected;
-      onChange({...checklist, phases: checklist.phases.map(ph => ({
-        ...ph, tasks: ph.tasks.filter(t => !ids.has(t.id))
-      }))});
+      onChange({
+        ...checklist,
+        phases: checklist.phases.map((ph) => ({
+          ...ph,
+          tasks: ph.tasks.filter((t) => !ids.has(t.id)),
+        })),
+      });
       exitVisualMode();
       setConfirmTaskDelete(false);
       setDdPending(false);
     } else {
       const item = allItems[focusIdx];
       if (!item || item.type !== "task") return;
-      onChange({...checklist, phases: checklist.phases.map(ph =>
-        ph.id !== item.phaseId ? ph : {...ph, tasks: ph.tasks.filter(t => t.id !== item.taskId)}
-      )});
+      onChange({
+        ...checklist,
+        phases: checklist.phases.map((ph) =>
+          ph.id !== item.phaseId
+            ? ph
+            : { ...ph, tasks: ph.tasks.filter((t) => t.id !== item.taskId) },
+        ),
+      });
       setConfirmTaskDelete(false);
       setDdPending(false);
-      setFocusIdx(i => Math.max(0, i - 1));
+      setFocusIdx((i) => Math.max(0, i - 1));
     }
   };
 
   const commitNewTask = (phaseId) => {
-    if (!newTaskText.trim()) { setAddingTask(null); setNewTaskText(""); return; }
-    onChange({...checklist, phases: checklist.phases.map(ph => ph.id!==phaseId ? ph : {
-      ...ph, tasks: [...ph.tasks, {id:uid(),text:newTaskText.trim(),done:false,subtasks:[],note:""}]
-    })});
-    setNewTaskText(""); setAddingTask(null);
+    if (!newTaskText.trim()) {
+      setAddingTask(null);
+      setNewTaskText("");
+      return;
+    }
+    onChange({
+      ...checklist,
+      phases: checklist.phases.map((ph) =>
+        ph.id !== phaseId
+          ? ph
+          : {
+              ...ph,
+              tasks: [
+                ...ph.tasks,
+                {
+                  id: uid(),
+                  text: newTaskText.trim(),
+                  done: false,
+                  subtasks: [],
+                  note: "",
+                },
+              ],
+            },
+      ),
+    });
+    setNewTaskText("");
+    setAddingTask(null);
   };
 
   useEffect(() => {
     const h = (e) => {
       if (modalOpen) return;
-      if (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="TEXTAREA") return;
+      if (
+        document.activeElement.tagName === "INPUT" ||
+        document.activeElement.tagName === "TEXTAREA"
+      )
+        return;
       const item = allItems[focusIdx];
 
       // ── Visual mode ──
       if (visualMode) {
-        if (e.key==="j"||e.key==="ArrowDown") {
+        if (e.key === "j" || e.key === "ArrowDown") {
           e.preventDefault();
-          const next = Math.min(focusIdx+1, allItems.length-1);
-          setFocusIdx(next); updateVisualSelection(next);
-        } else if (e.key==="k"||e.key==="ArrowUp") {
+          const next = Math.min(focusIdx + 1, allItems.length - 1);
+          setFocusIdx(next);
+          updateVisualSelection(next);
+        } else if (e.key === "k" || e.key === "ArrowUp") {
           e.preventDefault();
-          const next = Math.max(focusIdx-1, 0);
-          setFocusIdx(next); updateVisualSelection(next);
-        } else if (e.key==="x"||e.key==="Enter") {
+          const next = Math.max(focusIdx - 1, 0);
+          setFocusIdx(next);
+          updateVisualSelection(next);
+        } else if (e.key === "x" || e.key === "Enter") {
           e.preventDefault();
           // Toggle all selected tasks
           const sel = getSelectedTasks();
-          const allDone = sel.every(s => {
-            const ph = checklist.phases.find(p=>p.id===s.phaseId);
-            return ph?.tasks.find(t=>t.id===s.taskId)?.done;
+          const allDone = sel.every((s) => {
+            const ph = checklist.phases.find((p) => p.id === s.phaseId);
+            return ph?.tasks.find((t) => t.id === s.taskId)?.done;
           });
           let phases = checklist.phases;
-          for (const {phaseId, taskId} of sel) {
-            phases = phases.map(ph => ph.id!==phaseId ? ph : {
-              ...ph, tasks: ph.tasks.map(t => t.id!==taskId ? t : {...t, done:!allDone})
-            });
+          for (const { phaseId, taskId } of sel) {
+            phases = phases.map((ph) =>
+              ph.id !== phaseId
+                ? ph
+                : {
+                    ...ph,
+                    tasks: ph.tasks.map((t) =>
+                      t.id !== taskId ? t : { ...t, done: !allDone },
+                    ),
+                  },
+            );
           }
-          onChange({...checklist, phases});
-        } else if (e.key==="J") { e.preventDefault(); moveSelected("down"); }
-        else if (e.key==="K") { e.preventDefault(); moveSelected("up"); }
-        else if (e.key==="H") { e.preventDefault(); moveSelected("left"); }
-        else if (e.key==="L") { e.preventDefault(); moveSelected("right"); }
-        else if (e.key==="d") {
+          onChange({ ...checklist, phases });
+        } else if (e.key === "J") {
           e.preventDefault();
-          if (confirmTaskDelete) { deleteTask(); }
-          else if (ddPending) { clearTimeout(ddTimer.current); setDdPending(false); setConfirmTaskDelete(true); }
-          else { setDdPending(true); ddTimer.current = setTimeout(() => setDdPending(false), 400); }
+          moveSelected("down");
+        } else if (e.key === "K") {
+          e.preventDefault();
+          moveSelected("up");
+        } else if (e.key === "H") {
+          e.preventDefault();
+          moveSelected("left");
+        } else if (e.key === "L") {
+          e.preventDefault();
+          moveSelected("right");
+        } else if (e.key === "d") {
+          e.preventDefault();
+          if (confirmTaskDelete) {
+            deleteTask();
+          } else if (ddPending) {
+            clearTimeout(ddTimer.current);
+            setDdPending(false);
+            setConfirmTaskDelete(true);
+          } else {
+            setDdPending(true);
+            ddTimer.current = setTimeout(() => setDdPending(false), 400);
+          }
+        } else if (e.key === "y" && confirmTaskDelete) {
+          e.preventDefault();
+          deleteTask();
+        } else if (e.key === "n" && confirmTaskDelete) {
+          e.preventDefault();
+          setConfirmTaskDelete(false);
+          setDdPending(false);
+        } else if (e.key === "Escape" || e.key === "V") {
+          e.preventDefault();
+          if (confirmTaskDelete) {
+            setConfirmTaskDelete(false);
+            setDdPending(false);
+          } else exitVisualMode();
         }
-        else if (e.key==="y"&&confirmTaskDelete) { e.preventDefault(); deleteTask(); }
-        else if (e.key==="n"&&confirmTaskDelete) { e.preventDefault(); setConfirmTaskDelete(false); setDdPending(false); }
-        else if (e.key==="Escape"||e.key==="V") { e.preventDefault(); if(confirmTaskDelete){setConfirmTaskDelete(false);setDdPending(false);}else exitVisualMode(); }
         return;
       }
 
       // ── Normal mode ──
-      if (e.key==="j"||e.key==="ArrowDown") { e.preventDefault(); setFocusIdx(i=>Math.min(i+1,allItems.length-1)); }
-      else if (e.key==="k"||e.key==="ArrowUp") { e.preventDefault(); setFocusIdx(i=>Math.max(i-1,0)); }
-      else if ((e.key==="Enter"||e.key===" "||e.key==="x")&&item) {
+      if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
-        if (item.type==="task") toggleTask(item.phaseId,item.taskId);
-        if (item.type==="add") setAddingTask(item.phaseId);
-      }
-      else if (e.key==="V"&&item?.type==="task") { e.preventDefault(); enterVisualMode(focusIdx); }
-      else if (e.key==="d"&&!confirmDelete) {
+        setFocusIdx((i) => Math.min(i + 1, allItems.length - 1));
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.max(i - 1, 0));
+      } else if (
+        (e.key === "Enter" || e.key === " " || e.key === "x") &&
+        item
+      ) {
+        e.preventDefault();
+        if (item.type === "task") toggleTask(item.phaseId, item.taskId);
+        if (item.type === "add") setAddingTask(item.phaseId);
+      } else if (e.key === "V" && item?.type === "task") {
+        e.preventDefault();
+        enterVisualMode(focusIdx);
+      } else if (e.key === "d" && !confirmDelete) {
         e.preventDefault();
         if (confirmTaskDelete) {
           // second d — confirm
@@ -927,134 +1743,245 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
             setConfirmDelete(true);
           }, 400);
         }
-      }
-      else if (e.key==="y"&&confirmTaskDelete) { e.preventDefault(); deleteTask(); }
-      else if (e.key==="n"&&confirmTaskDelete) { e.preventDefault(); setConfirmTaskDelete(false); setDdPending(false); }
-      else if (e.key==="Escape"&&confirmTaskDelete) { e.preventDefault(); setConfirmTaskDelete(false); setDdPending(false); }
-      else if (e.key==="Escape"||e.key==="b") { e.preventDefault(); if(confirmDelete)setConfirmDelete(false); else onBack(); }
-      else if (e.key==="e") { e.preventDefault(); onEdit(); }
-
-      else if (e.key==="y"&&confirmDelete) { e.preventDefault(); onDelete(); }
-      else if (e.key==="n"&&confirmDelete) { e.preventDefault(); setConfirmDelete(false); }
-      else if (e.key==="P"&&item) { e.preventDefault(); togglePhase(item.phaseId); }
-      else if (e.key==="J"&&item?.type==="task") { e.preventDefault(); moveTask(item.taskId,item.phaseId,"down"); }
-      else if (e.key==="K"&&item?.type==="task") { e.preventDefault(); moveTask(item.taskId,item.phaseId,"up"); }
-      else if (e.key==="H"&&item?.type==="task") { e.preventDefault(); moveTask(item.taskId,item.phaseId,"left"); }
-      else if (e.key==="L"&&item?.type==="task") { e.preventDefault(); moveTask(item.taskId,item.phaseId,"right"); }
-      else if (e.key==="a") { e.preventDefault(); onArchive(); }
-      else if (e.key==="E") { e.preventDefault(); onExport(); }
-      else if (e.key==="["||e.key==="]") {
+      } else if (e.key === "y" && confirmTaskDelete) {
+        e.preventDefault();
+        deleteTask();
+      } else if (e.key === "n" && confirmTaskDelete) {
+        e.preventDefault();
+        setConfirmTaskDelete(false);
+        setDdPending(false);
+      } else if (e.key === "Escape" && confirmTaskDelete) {
+        e.preventDefault();
+        setConfirmTaskDelete(false);
+        setDdPending(false);
+      } else if (e.key === "Escape" || e.key === "b") {
+        e.preventDefault();
+        if (confirmDelete) setConfirmDelete(false);
+        else onBack();
+      } else if (e.key === "e") {
+        e.preventDefault();
+        onEdit();
+      } else if (e.key === "y" && confirmDelete) {
+        e.preventDefault();
+        onDelete();
+      } else if (e.key === "n" && confirmDelete) {
+        e.preventDefault();
+        setConfirmDelete(false);
+      } else if (e.key === "P" && item) {
+        e.preventDefault();
+        togglePhase(item.phaseId);
+      } else if (e.key === "J" && item?.type === "task") {
+        e.preventDefault();
+        moveTask(item.taskId, item.phaseId, "down");
+      } else if (e.key === "K" && item?.type === "task") {
+        e.preventDefault();
+        moveTask(item.taskId, item.phaseId, "up");
+      } else if (e.key === "H" && item?.type === "task") {
+        e.preventDefault();
+        moveTask(item.taskId, item.phaseId, "left");
+      } else if (e.key === "L" && item?.type === "task") {
+        e.preventDefault();
+        moveTask(item.taskId, item.phaseId, "right");
+      } else if (e.key === "a") {
+        e.preventDefault();
+        onArchive();
+      } else if (e.key === "E") {
+        e.preventDefault();
+        onExport();
+      } else if (e.key === "[" || e.key === "]") {
         e.preventDefault();
         const item = allItems[focusIdx];
         if (!item) return;
         const phases = checklist.phases;
-        const phIdx = phases.findIndex(p => p.id === item.phaseId);
-        const toIdx = e.key==="[" ? phIdx - 1 : phIdx + 1;
+        const phIdx = phases.findIndex((p) => p.id === item.phaseId);
+        const toIdx = e.key === "[" ? phIdx - 1 : phIdx + 1;
         if (toIdx < 0 || toIdx >= phases.length) return;
         const newPhases = [...phases];
-        [newPhases[phIdx], newPhases[toIdx]] = [newPhases[toIdx], newPhases[phIdx]];
-        onChange({...checklist, phases: newPhases});
+        [newPhases[phIdx], newPhases[toIdx]] = [
+          newPhases[toIdx],
+          newPhases[phIdx],
+        ];
+        onChange({ ...checklist, phases: newPhases });
         // Restore focus to the same task after phase order changes
         const trackedId = item.taskId;
         setTimeout(() => {
-          const newAllItems = newPhases.flatMap(ph => [
-            ...ph.tasks.map(t => ({type:"task", phaseId:ph.id, taskId:t.id})),
-            {type:"add", phaseId:ph.id},
+          const newAllItems = newPhases.flatMap((ph) => [
+            ...ph.tasks.map((t) => ({
+              type: "task",
+              phaseId: ph.id,
+              taskId: t.id,
+            })),
+            { type: "add", phaseId: ph.id },
           ]);
-          const newIdx = newAllItems.findIndex(it => it.type==="task" && it.taskId===trackedId);
+          const newIdx = newAllItems.findIndex(
+            (it) => it.type === "task" && it.taskId === trackedId,
+          );
           if (newIdx !== -1) setFocusIdx(newIdx);
         }, 0);
-      }
-      else if (e.key==="g") setFocusIdx(0);
-      else if (e.key==="G") setFocusIdx(allItems.length-1);
+      } else if (e.key === "g") setFocusIdx(0);
+      else if (e.key === "G") setFocusIdx(allItems.length - 1);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [allItems, focusIdx, confirmDelete, confirmTaskDelete, ddPending, modalOpen, visualMode, visualAnchor, selected, onBack, onEdit, onDelete, onArchive, onExport, checklist]);
+  }, [
+    allItems,
+    focusIdx,
+    confirmDelete,
+    confirmTaskDelete,
+    ddPending,
+    modalOpen,
+    visualMode,
+    visualAnchor,
+    selected,
+    onBack,
+    onEdit,
+    onDelete,
+    onArchive,
+    onExport,
+    checklist,
+  ]);
 
   return (
     <div className="app">
-      {showConfetti && <Confetti onDone={()=>setShowConfetti(false)} />}
-
+      {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
 
       <div className="detail-header">
         <div className="detail-header-top">
           <div className="detail-title-row">
             <div className="detail-back-row">
-              <button className="back-btn" onClick={onBack}>←</button>
-              <h1 className="serif" style={{fontSize:"1.7rem",lineHeight:1}}>{checklist.emoji} {checklist.title}</h1>
+              <button className="back-btn" onClick={onBack}>
+                ←
+              </button>
+              <h1
+                className="serif"
+                style={{ fontSize: "1.7rem", lineHeight: 1 }}
+              >
+                {checklist.emoji} {checklist.title}
+              </h1>
             </div>
-            <div className="detail-subtitle">{checklist.description || "checklist"}</div>
+            <div className="detail-subtitle">
+              {checklist.description || "checklist"}
+            </div>
           </div>
           {confirmDelete ? (
             <div className="confirm-delete">
               Delete?&nbsp;
-              <button className="confirm-btn yes" onClick={onDelete}>yes</button>
-              <button className="confirm-btn" onClick={()=>setConfirmDelete(false)}>cancel</button>
+              <button className="confirm-btn yes" onClick={onDelete}>
+                yes
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => setConfirmDelete(false)}
+              >
+                cancel
+              </button>
             </div>
           ) : (
             <div className="detail-actions">
-              <button className="action-btn" onClick={onEdit}>[edit]</button>
-              <button className="action-btn" onClick={onArchive}>[{checklist.archived?"unarchive":"archive"}]</button>
-              <button className="action-btn" onClick={onExport}>[export]</button>
-              <button className="action-btn danger" onClick={()=>setConfirmDelete(true)}>[delete]</button>
+              <button className="action-btn" onClick={onEdit}>
+                [edit]
+              </button>
+              <button className="action-btn" onClick={onArchive}>
+                [{checklist.archived ? "unarchive" : "archive"}]
+              </button>
+              <button className="action-btn" onClick={onExport}>
+                [export]
+              </button>
+              <button
+                className="action-btn danger"
+                onClick={() => setConfirmDelete(true)}
+              >
+                [delete]
+              </button>
             </div>
           )}
         </div>
-        <div className="progress-label-large">{done} / {total} Complete{pct===100?" 🎉":""}</div>
+        <div className="progress-label-large">
+          {done} / {total} Complete{pct === 100 ? " 🎉" : ""}
+        </div>
         <div className="progress-bar-bg">
-          <div className="progress-bar-fill" style={{width:`${pct}%`,background:accent}} />
+          <div
+            className="progress-bar-fill"
+            style={{ width: `${pct}%`, background: accent }}
+          />
         </div>
       </div>
 
-      {checklist.phases.map(ph => (
+      {checklist.phases.map((ph) => (
         <div className="phase-section" key={ph.id}>
           <div className="phase-label">
-            <span style={{color:accent}}>●</span>
-            {ph.label} — {ph.title}{ph.duration?` · ${ph.duration}`:""}
+            <span style={{ color: accent }}>●</span>
+            {ph.label} — {ph.title}
+            {ph.duration ? ` · ${ph.duration}` : ""}
           </div>
           <div className="tasks-list">
-            {ph.tasks.map(task => {
-              const flatIdx = allItems.findIndex(it=>it.type==="task"&&it.taskId===task.id);
-              const isFocused = flatIdx===focusIdx;
+            {ph.tasks.map((task) => {
+              const flatIdx = allItems.findIndex(
+                (it) => it.type === "task" && it.taskId === task.id,
+              );
+              const isFocused = flatIdx === focusIdx;
               const isSelected = selected.has(task.id);
               const isDragging = dragTask.current?.selectedIds
                 ? dragTask.current.selectedIds.has(task.id)
                 : dragTask.current?.taskId === task.id;
               return (
-                <div key={task.id}
-                  className={`task-row${isFocused?" focused":""}${isSelected?" selected":""}${isDragging?" dragging":""}`}
-                  ref={isFocused?focusRef:null}
+                <div
+                  key={task.id}
+                  className={`task-row${isFocused ? " focused" : ""}${isSelected ? " selected" : ""}${isDragging ? " dragging" : ""}`}
+                  ref={isFocused ? focusRef : null}
                   draggable="true"
-                  onMouseEnter={()=>{ if(!visualMode) setFocusIdx(flatIdx); }}
-                  onClick={e=>{
-                    if (e.ctrlKey||e.metaKey) {
+                  onMouseEnter={() => {
+                    if (!visualMode) setFocusIdx(flatIdx);
+                  }}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey) {
                       // Ctrl+click: toggle in selection
-                      setSelected(s=>{ const n=new Set(s); n.has(task.id)?n.delete(task.id):n.add(task.id); return n; });
-                      if (!selected.size) { setVisualMode(true); setVisualAnchor(flatIdx); }
+                      setSelected((s) => {
+                        const n = new Set(s);
+                        n.has(task.id) ? n.delete(task.id) : n.add(task.id);
+                        return n;
+                      });
+                      if (!selected.size) {
+                        setVisualMode(true);
+                        setVisualAnchor(flatIdx);
+                      }
                     } else if (e.shiftKey && selected.size) {
                       // Shift+click: range select
-                      const lo=Math.min(focusIdx,flatIdx), hi=Math.max(focusIdx,flatIdx);
-                      const ids=new Set();
-                      for(let i=lo;i<=hi;i++) if(allItems[i]?.type==="task") ids.add(allItems[i].taskId);
-                      setSelected(ids); setVisualMode(true); setVisualAnchor(focusIdx);
+                      const lo = Math.min(focusIdx, flatIdx),
+                        hi = Math.max(focusIdx, flatIdx);
+                      const ids = new Set();
+                      for (let i = lo; i <= hi; i++)
+                        if (allItems[i]?.type === "task")
+                          ids.add(allItems[i].taskId);
+                      setSelected(ids);
+                      setVisualMode(true);
+                      setVisualAnchor(focusIdx);
                     } else if (visualMode) {
                       exitVisualMode();
                     }
                     setFocusIdx(flatIdx);
                   }}
-                  onDragStart={e=>{
+                  onDragStart={(e) => {
                     if (isSelected && selected.size > 1) {
-                      dragTask.current={selectedIds:new Set(selected), phaseId:ph.id};
+                      dragTask.current = {
+                        selectedIds: new Set(selected),
+                        phaseId: ph.id,
+                      };
                     } else {
-                      dragTask.current={taskId:task.id,phaseId:ph.id};
+                      dragTask.current = { taskId: task.id, phaseId: ph.id };
                     }
-                    e.dataTransfer.effectAllowed="move";
+                    e.dataTransfer.effectAllowed = "move";
                   }}
-                  onDragEnd={()=>{ dragTask.current=null; setDragOver(null); }}
-                  onDragOver={e=>{e.preventDefault();setDragOver({taskId:task.id});}}
-                  onDragLeave={()=>setDragOver(null)}
-                  onDrop={e=>{
+                  onDragEnd={() => {
+                    dragTask.current = null;
+                    setDragOver(null);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver({ taskId: task.id });
+                  }}
+                  onDragLeave={() => setDragOver(null)}
+                  onDrop={(e) => {
                     e.preventDefault();
                     if (!dragTask.current) return;
                     const isMulti = !!dragTask.current.selectedIds;
@@ -1062,93 +1989,222 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
 
                     if (isMulti) {
                       const ids = dragTask.current.selectedIds;
-                      const srcPh = checklist.phases.find(p=>p.id===srcPhase);
-                      const movingTasks = srcPh.tasks.filter(t=>ids.has(t.id));
-                      let newPhases = checklist.phases.map(p=>p.id===srcPhase?{...p,tasks:p.tasks.filter(t=>!ids.has(t.id))}:p);
-                      newPhases = newPhases.map(p=>p.id!==ph.id?p:{
-                        ...p, tasks:(()=>{
-                          const arr=[...p.tasks];
-                          const insertIdx=arr.findIndex(t=>t.id===task.id);
-                          arr.splice(insertIdx,0,...movingTasks);
-                          return arr;
-                        })()
-                      });
-                      onChange({...checklist,phases:newPhases});
+                      const srcPh = checklist.phases.find(
+                        (p) => p.id === srcPhase,
+                      );
+                      const movingTasks = srcPh.tasks.filter((t) =>
+                        ids.has(t.id),
+                      );
+                      let newPhases = checklist.phases.map((p) =>
+                        p.id === srcPhase
+                          ? {
+                              ...p,
+                              tasks: p.tasks.filter((t) => !ids.has(t.id)),
+                            }
+                          : p,
+                      );
+                      newPhases = newPhases.map((p) =>
+                        p.id !== ph.id
+                          ? p
+                          : {
+                              ...p,
+                              tasks: (() => {
+                                const arr = [...p.tasks];
+                                const insertIdx = arr.findIndex(
+                                  (t) => t.id === task.id,
+                                );
+                                arr.splice(insertIdx, 0, ...movingTasks);
+                                return arr;
+                              })(),
+                            },
+                      );
+                      onChange({ ...checklist, phases: newPhases });
                     } else {
                       const srcId = dragTask.current.taskId;
-                      if (srcId===task.id) { setDragOver(null); return; }
-                      const srcPh = checklist.phases.find(p=>p.id===srcPhase);
-                      const movingTask = srcPh.tasks.find(t=>t.id===srcId);
-                      let newPhases = checklist.phases.map(p=>p.id===srcPhase?{...p,tasks:p.tasks.filter(t=>t.id!==srcId)}:p);
-                      newPhases = newPhases.map(p=>p.id!==ph.id?p:{
-                        ...p, tasks:(()=>{
-                          const arr=[...p.tasks];
-                          const insertIdx=arr.findIndex(t=>t.id===task.id);
-                          arr.splice(insertIdx,0,movingTask);
-                          return arr;
-                        })()
-                      });
-                      onChange({...checklist,phases:newPhases});
+                      if (srcId === task.id) {
+                        setDragOver(null);
+                        return;
+                      }
+                      const srcPh = checklist.phases.find(
+                        (p) => p.id === srcPhase,
+                      );
+                      const movingTask = srcPh.tasks.find(
+                        (t) => t.id === srcId,
+                      );
+                      let newPhases = checklist.phases.map((p) =>
+                        p.id === srcPhase
+                          ? {
+                              ...p,
+                              tasks: p.tasks.filter((t) => t.id !== srcId),
+                            }
+                          : p,
+                      );
+                      newPhases = newPhases.map((p) =>
+                        p.id !== ph.id
+                          ? p
+                          : {
+                              ...p,
+                              tasks: (() => {
+                                const arr = [...p.tasks];
+                                const insertIdx = arr.findIndex(
+                                  (t) => t.id === task.id,
+                                );
+                                arr.splice(insertIdx, 0, movingTask);
+                                return arr;
+                              })(),
+                            },
+                      );
+                      onChange({ ...checklist, phases: newPhases });
                     }
-                    dragTask.current=null; setDragOver(null);
+                    dragTask.current = null;
+                    setDragOver(null);
                   }}
                 >
                   <div className="task-row-main">
-                    <div className={`checkbox${task.done?" checked":""}`}
-                      onClick={e=>{e.stopPropagation();setFocusIdx(flatIdx);toggleTask(ph.id,task.id);}}>
-                      {task.done&&"✓"}
+                    <div
+                      className={`checkbox${task.done ? " checked" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFocusIdx(flatIdx);
+                        toggleTask(ph.id, task.id);
+                      }}
+                    >
+                      {task.done && "✓"}
                     </div>
                     <div className="task-body">
-                      <span className={`task-text${task.done?" done":""}`}
-                        onClick={e=>{e.stopPropagation();if(!visualMode&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey){setFocusIdx(flatIdx);toggleTask(ph.id,task.id);}}}>
+                      <span
+                        className={`task-text${task.done ? " done" : ""}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (
+                            !visualMode &&
+                            !e.ctrlKey &&
+                            !e.metaKey &&
+                            !e.shiftKey
+                          ) {
+                            setFocusIdx(flatIdx);
+                            toggleTask(ph.id, task.id);
+                          }
+                        }}
+                      >
                         {task.text}
                       </span>
-                      {task.tag && <span className="tag" style={{marginLeft:8}}>{task.tag}</span>}
+                      {task.tag && (
+                        <span className="tag" style={{ marginLeft: 8 }}>
+                          {task.tag}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
               );
             })}
 
-            {addingTask===ph.id ? (
+            {addingTask === ph.id ? (
               <div className="add-task-row">
-                <input className="add-task-input" autoFocus placeholder="New task..."
-                  value={newTaskText} onChange={e=>setNewTaskText(e.target.value)}
-                  onKeyDown={e=>{if(e.key==="Enter")commitNewTask(ph.id);if(e.key==="Escape"){setAddingTask(null);setNewTaskText("");}}}
-                  onBlur={()=>commitNewTask(ph.id)} />
+                <input
+                  className="add-task-input"
+                  autoFocus
+                  placeholder="New task..."
+                  value={newTaskText}
+                  onChange={(e) => setNewTaskText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitNewTask(ph.id);
+                    if (e.key === "Escape") {
+                      setAddingTask(null);
+                      setNewTaskText("");
+                    }
+                  }}
+                  onBlur={() => commitNewTask(ph.id)}
+                />
               </div>
-            ) : (() => {
-              const addIdx = allItems.findIndex(it=>it.type==="add"&&it.phaseId===ph.id);
-              const isAddFocused = addIdx===focusIdx;
-              return (
-                <button className="add-task-link"
-                  ref={isAddFocused?focusRef:null}
-                  style={isAddFocused?{color:"#D4522A",outline:"2px solid #D4522A",outlineOffset:"-2px"}:{}}
-                  onClick={()=>{setFocusIdx(addIdx);setAddingTask(ph.id);}}
-                  onMouseEnter={()=>setFocusIdx(addIdx)}>+ add task</button>
-              );
-            })()}
+            ) : (
+              (() => {
+                const addIdx = allItems.findIndex(
+                  (it) => it.type === "add" && it.phaseId === ph.id,
+                );
+                const isAddFocused = addIdx === focusIdx;
+                return (
+                  <button
+                    className="add-task-link"
+                    ref={isAddFocused ? focusRef : null}
+                    style={
+                      isAddFocused
+                        ? {
+                            color: "#D4522A",
+                            outline: "2px solid #D4522A",
+                            outlineOffset: "-2px",
+                          }
+                        : {}
+                    }
+                    onClick={() => {
+                      setFocusIdx(addIdx);
+                      setAddingTask(ph.id);
+                    }}
+                    onMouseEnter={() => setFocusIdx(addIdx)}
+                  >
+                    + add task
+                  </button>
+                );
+              })()
+            )}
           </div>
         </div>
       ))}
 
       {checklist.total_days && (
-        <div className="checklist-footer">~{checklist.total_days} DAYS TOTAL &nbsp;·&nbsp; {checklist.title.toUpperCase()} V1.0</div>
+        <div className="checklist-footer">
+          ~{checklist.total_days} DAYS TOTAL &nbsp;·&nbsp;{" "}
+          {checklist.title.toUpperCase()} V1.0
+        </div>
       )}
 
-      <KeyHintBar mode={visualMode ? `VISUAL (${selected.size})` : 'NORMAL'} hints={confirmTaskDelete ? [
-        {key:"dd / y",label:`delete ${visualMode?selected.size+' tasks':'task'}`},{key:"n/Esc",label:"cancel"},
-      ] : confirmDelete ? [
-        {key:"y",label:"confirm delete"},{key:"n/Esc",label:"cancel"},
-      ] : visualMode ? [
-        {key:"j/k",label:"extend"},{key:"J/K",label:"move up/down"},{key:"H/L",label:"move phase"},
-        {key:"x",label:"toggle all"},{key:"dd",label:"delete selected"},{key:"V/Esc",label:"exit visual"},
-      ] : [
-        {key:"j/k",label:"move"},{key:"V",label:"visual mode"},{key:"J/K",label:"reorder"},{key:"H/L",label:"move phase"},
-        {key:"x",label:"toggle"},{key:"dd",label:"delete task"},{key:"P",label:"phase done"},{key:"e",label:"edit"},
-        {key:"a",label:checklist.archived?"unarchive":"archive"},{key:"E",label:"export"},
-        {key:"d",label:"delete"},{key:"[/]",label:"move phase"},{key:"b/Esc",label:"back"},{key:"?",label:"help"},
-      ]} />
+      <KeyHintBar
+        mode={visualMode ? `VISUAL (${selected.size})` : "NORMAL"}
+        hints={
+          confirmTaskDelete
+            ? [
+                {
+                  key: "dd / y",
+                  label: `delete ${visualMode ? selected.size + " tasks" : "task"}`,
+                },
+                { key: "n/Esc", label: "cancel" },
+              ]
+            : confirmDelete
+              ? [
+                  { key: "y", label: "confirm delete" },
+                  { key: "n/Esc", label: "cancel" },
+                ]
+              : visualMode
+                ? [
+                    { key: "j/k", label: "extend" },
+                    { key: "J/K", label: "move up/down" },
+                    { key: "H/L", label: "move phase" },
+                    { key: "x", label: "toggle all" },
+                    { key: "dd", label: "delete selected" },
+                    { key: "V/Esc", label: "exit visual" },
+                  ]
+                : [
+                    { key: "j/k", label: "move" },
+                    { key: "V", label: "visual mode" },
+                    { key: "J/K", label: "reorder" },
+                    { key: "H/L", label: "move phase" },
+                    { key: "x", label: "toggle" },
+                    { key: "dd", label: "delete task" },
+                    { key: "P", label: "phase done" },
+                    { key: "e", label: "edit" },
+                    {
+                      key: "a",
+                      label: checklist.archived ? "unarchive" : "archive",
+                    },
+                    { key: "E", label: "export" },
+                    { key: "d", label: "delete" },
+                    { key: "[/]", label: "move phase" },
+                    { key: "b/Esc", label: "back" },
+                    { key: "?", label: "help" },
+                  ]
+        }
+      />
     </div>
   );
 }
@@ -1156,74 +2212,156 @@ function Detail({ checklist, onChange, onBack, onEdit, onDelete, onArchive, onEx
 // ──── App Root ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [checklists, setChecklists] = useState(()=>loadData());
+  const [checklists, setChecklists] = useState(() => loadData());
   const [view, setView] = useState("home");
   const [activeId, setActiveId] = useState(null);
   const [modal, setModal] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [scheme, setScheme] = useState(() => loadScheme());
 
-  const persist = useCallback((next)=>{setChecklists(next);saveData(next);},[]);
+  const cycleScheme = useCallback((direct) => {
+    setScheme((s) => {
+      const next =
+        direct ||
+        (() => {
+          const idx = SCHEMES.findIndex((sc) => sc.id === s.id);
+          return SCHEMES[(idx + 1) % SCHEMES.length];
+        })();
+      saveScheme(next);
+      applyScheme(next);
+      return next;
+    });
+  }, []);
 
-  const handleSelect = (id) => { setActiveId(id); setView("detail"); };
-  const handleBack = () => { setView("home"); setActiveId(null); };
+  // Apply scheme on mount and when it changes
+  useEffect(() => {
+    applyScheme(scheme);
+  }, [scheme]);
+
+  // T key cycles scheme globally
+  useEffect(() => {
+    const h = (e) => {
+      if (
+        e.key === "T" &&
+        document.activeElement.tagName !== "INPUT" &&
+        document.activeElement.tagName !== "TEXTAREA"
+      ) {
+        cycleScheme();
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [cycleScheme]);
+
+  const persist = useCallback((next) => {
+    setChecklists(next);
+    saveData(next);
+  }, []);
+
+  const handleSelect = (id) => {
+    setActiveId(id);
+    setView("detail");
+  };
+  const handleBack = () => {
+    setView("home");
+    setActiveId(null);
+  };
 
   const handleImport = (items) => {
-    const existing = new Set(checklists.map(c=>c.id));
-    const deduped = items.map(item=>existing.has(item.id)?{...item,id:uid()}:item);
-    persist([...checklists,...deduped]);
+    const existing = new Set(checklists.map((c) => c.id));
+    const deduped = items.map((item) =>
+      existing.has(item.id) ? { ...item, id: uid() } : item,
+    );
+    persist([...checklists, ...deduped]);
   };
 
   const handleSave = (data) => {
-    if (modal==="new") persist([...checklists,data]);
-    else { persist(checklists.map(cl=>cl.id===data.id?data:cl)); setActiveId(data.id); }
+    if (modal === "new") persist([...checklists, data]);
+    else {
+      persist(checklists.map((cl) => (cl.id === data.id ? data : cl)));
+      setActiveId(data.id);
+    }
     setModal(null);
   };
 
-  const handleChange = (updated) => persist(checklists.map(cl=>cl.id===updated.id?updated:cl));
+  const handleChange = (updated) =>
+    persist(checklists.map((cl) => (cl.id === updated.id ? updated : cl)));
 
   const handleDelete = () => {
-    persist(checklists.filter(cl=>cl.id!==activeId));
-    setView("home"); setActiveId(null);
+    persist(checklists.filter((cl) => cl.id !== activeId));
+    setView("home");
+    setActiveId(null);
   };
 
   const handleArchive = () => {
-    persist(checklists.map(c=>c.id===activeId?{...c,archived:!c.archived}:c));
+    persist(
+      checklists.map((c) =>
+        c.id === activeId ? { ...c, archived: !c.archived } : c,
+      ),
+    );
   };
 
   const handleExport = () => {
-    const cl = checklists.find(c=>c.id===activeId); if(!cl) return;
-    const blob = new Blob([JSON.stringify(cl,null,2)],{type:"application/json"});
+    const cl = checklists.find((c) => c.id === activeId);
+    if (!cl) return;
+    const blob = new Blob([JSON.stringify(cl, null, 2)], {
+      type: "application/json",
+    });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${cl.title.toLowerCase().replace(/\s+/g,"-")}.json`;
-    a.click(); URL.revokeObjectURL(a.href);
+    a.download = `${cl.title.toLowerCase().replace(/\s+/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
-  useEffect(()=>{
+  useEffect(() => {
     const h = (e) => {
-      if (e.key==="?"&&document.activeElement.tagName!=="INPUT"&&document.activeElement.tagName!=="TEXTAREA") {
-        setShowHelp(v=>!v);
+      if (
+        e.key === "?" &&
+        document.activeElement.tagName !== "INPUT" &&
+        document.activeElement.tagName !== "TEXTAREA"
+      ) {
+        setShowHelp((v) => !v);
       }
     };
-    window.addEventListener("keydown",h);
-    return ()=>window.removeEventListener("keydown",h);
-  },[]);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
 
-  const active = checklists.find(cl=>cl.id===activeId);
+  const active = checklists.find((cl) => cl.id === activeId);
 
   return (
     <>
       <style>{styles}</style>
-      {view==="home"
-        ? <Home checklists={checklists} onSelect={handleSelect} onNew={()=>setModal("new")} onImport={handleImport} />
-        : active
-          ? <Detail checklist={active} onChange={handleChange} onBack={handleBack}
-              onEdit={()=>setModal("edit")} onDelete={handleDelete}
-              onArchive={handleArchive} onExport={handleExport}
-              modalOpen={!!modal||showHelp} />
-          : null}
-      {modal && <Modal initial={modal==="edit"?active:null} onSave={handleSave} onClose={()=>setModal(null)} />}
-      {showHelp && <HelpOverlay onClose={()=>setShowHelp(false)} />}
+      {view === "home" ? (
+        <Home
+          checklists={checklists}
+          onSelect={handleSelect}
+          onNew={() => setModal("new")}
+          onImport={handleImport}
+          scheme={scheme}
+          onCycleScheme={cycleScheme}
+        />
+      ) : active ? (
+        <Detail
+          checklist={active}
+          onChange={handleChange}
+          onBack={handleBack}
+          onEdit={() => setModal("edit")}
+          onDelete={handleDelete}
+          onArchive={handleArchive}
+          onExport={handleExport}
+          modalOpen={!!modal || showHelp}
+        />
+      ) : null}
+      {modal && (
+        <Modal
+          initial={modal === "edit" ? active : null}
+          onSave={handleSave}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
     </>
   );
 }
