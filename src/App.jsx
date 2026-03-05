@@ -360,7 +360,7 @@ const styles = `
   .task-row.focused { background:var(--bg-hover); outline:2px solid var(--accent); outline-offset:-2px; }
   .task-row-main { display:flex; align-items:center; gap:11px; }
 
-  .checkbox { width:15px; height:15px; border:1.5px solid var(--text-muted); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:10px; color:white; cursor:pointer; }
+  .checkbox { width:15px; height:15px; border:1.5px solid var(--text-muted); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--bg); cursor:pointer; }
   .checkbox.checked { background:var(--accent); border-color:var(--accent); }
 
   .task-body { flex:1; min-width:0; }
