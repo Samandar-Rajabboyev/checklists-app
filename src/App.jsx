@@ -181,7 +181,10 @@ const loadData = () => {
   return [];
 };
 const saveData = (d) => ls.set("checklists-v2", JSON.stringify(d));
-const loadView = () => ls.get("view") || "grid";
+const loadView = () => {
+  const v = ls.get("view");
+  return ["grid", "list", "compact"].includes(v) ? v : "grid";
+};
 const saveView = (v) => ls.set("view", v);
 const loadScheme = () => {
   const id = ls.get("scheme");
@@ -205,14 +208,29 @@ const getProgress = (cl) => {
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600&family=DM+Mono:wght@400;500&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; padding-bottom: 40px; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; padding-bottom: 24px; }
   .serif { font-family: 'Fraunces', serif; font-weight: 600; }
   .app { max-width: 960px; margin: 0 auto; padding: 0 24px 60px; }
 
-  /* Header */
-  .header { display:flex; align-items:center; justify-content:space-between; padding:36px 0 18px; border-bottom:1.5px solid var(--border-strong); margin-bottom:24px; gap:12px; flex-wrap:wrap; }
-  .header h1 { font-size:2.2rem; line-height:1; }
-  .header-right { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  /* Topbar */
+  .topbar { position:sticky; top:0; z-index:40; display:flex; align-items:center; justify-content:space-between; height:48px; padding:0 24px; background:var(--bg-card); border-bottom:1px solid var(--border); margin:0 -24px 28px; gap:0; }
+  .topbar-brand { display:flex; align-items:center; gap:8px; min-width:0; flex-shrink:0; margin-right:24px; }
+  .topbar-logo { font-size:1rem; color:var(--accent); flex-shrink:0; }
+  .topbar-title { font-size:1rem; line-height:1; white-space:nowrap; }
+  .topbar-nav { display:flex; align-items:stretch; height:100%; flex:1; gap:0; }
+  .topbar-nav-btn { background:none; border:none; font-family:'DM Mono',monospace; font-size:0.68rem; color:var(--text-muted); cursor:pointer; padding:0 16px; border-bottom:2px solid transparent; letter-spacing:0.04em; transition:color 0.1s; white-space:nowrap; }
+  .topbar-nav-btn:hover { color:var(--text); }
+  .topbar-nav-btn.active { color:var(--text); border-bottom-color:var(--accent); }
+  .topbar-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; margin-left:16px; }
+  .topbar-views { display:flex; align-items:center; gap:1px; background:var(--border); padding:1px; }
+  .topbar-view-btn { background:none; border:none; font-size:0.85rem; cursor:pointer; color:var(--text-muted); padding:3px 7px; line-height:1; }
+  .topbar-view-btn:hover { color:var(--text); }
+  .topbar-view-btn.active { background:var(--bg); color:var(--text); }
+  .topbar-divider { width:1px; height:20px; background:var(--border); margin:0 4px; flex-shrink:0; }
+  .topbar-import-btn { background:none; border:none; font-family:'DM Mono',monospace; font-size:0.66rem; color:var(--text-muted); cursor:pointer; padding:5px 8px; letter-spacing:0.03em; }
+  .topbar-import-btn:hover { color:var(--text); }
+  .topbar-new-btn { background:var(--border-strong); color:var(--bg); border:none; font-family:'DM Mono',monospace; font-size:0.68rem; cursor:pointer; padding:6px 13px; letter-spacing:0.04em; white-space:nowrap; }
+  .topbar-new-btn:hover { opacity:0.82; }
 
   /* Buttons */
   .btn { border:none; font-family:'DM Mono',monospace; font-size:0.72rem; cursor:pointer; padding:7px 13px; letter-spacing:0.04em; }
@@ -223,6 +241,10 @@ const styles = `
 
   /* Scheme picker */
   .scheme-picker { display:flex; gap:5px; align-items:center; }
+
+  /* UI mode toggle */
+  .mode-toggle-btn { background:none; border:1px solid var(--border); font-family:'DM Mono',monospace; font-size:0.64rem; color:var(--text-muted); cursor:pointer; padding:4px 10px; letter-spacing:0.04em; }
+  .mode-toggle-btn:hover { color:var(--text); border-color:var(--text-muted); }
   .scheme-dot { width:14px; height:14px; cursor:pointer; border-radius:50%; flex-shrink:0; transition:transform 0.1s; }
   .scheme-dot:hover { transform:scale(1.2); }
   .scheme-dot.active { outline:2px solid var(--text); outline-offset:2px; }
@@ -234,16 +256,9 @@ const styles = `
   .search-clear { background:none; border:none; font-size:1rem; cursor:pointer; color:var(--text-muted); padding:0 4px; }
   .search-clear:hover { color:var(--accent); }
 
-  /* Filter tabs */
-  .filter-tabs { display:flex; border:1px solid var(--border); width:fit-content; }
-  .filter-tab { background:none; border:none; border-right:1px solid var(--border); font-family:'DM Mono',monospace; font-size:0.66rem; padding:5px 13px; cursor:pointer; color:var(--text-muted); letter-spacing:0.04em; }
-  .filter-tab:last-child { border-right:none; }
-  .filter-tab.active { background:var(--border-strong); color:var(--bg); }
-
-  /* View toggle */
-  .view-toggle { display:flex; gap:4px; align-items:center; }
-  .view-btn { background:none; border:1px solid var(--border); font-family:'DM Mono',monospace; font-size:0.66rem; padding:4px 10px; cursor:pointer; color:var(--text-muted); }
-  .view-btn.active { background:var(--border-strong); color:var(--bg); border-color:var(--border-strong); }
+  /* Filter/view (kept for compat, now used via topbar classes) */
+  .filter-tab { display:none; }
+  .view-btn { display:none; }
 
   /* Cards — grid */
   .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
@@ -307,6 +322,10 @@ const styles = `
   .phase-label:hover { opacity:0.82; }
   .phase-collapse-icon { font-size:0.5rem; opacity:0.6; }
   .phase-done-summary { font-size:0.65rem; color:var(--text-muted); margin-bottom:12px; padding-left:2px; }
+  .phase-label-focused { background: var(--accent) !important; color: var(--bg) !important; opacity: 1 !important; }
+  .phase-label-focused .phase-collapse-icon { opacity: 1 !important; }
+  .phase-label-search { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .phase-done-summary-focused { color: var(--text) !important; font-weight: 500; }
 
   /* Task list */
   .tasks-list { border:1px solid var(--border); background:var(--bg-card); }
@@ -374,13 +393,13 @@ const styles = `
   .btn-cancel { background:none; border:1px solid var(--border); color:var(--text-muted); padding:7px 15px; font-family:'DM Mono',monospace; font-size:0.7rem; cursor:pointer; }
   .btn-cancel:hover { border-color:var(--text-muted); color:var(--text); }
 
-  /* Keyhint bar */
-  .keyhint-bar { position:fixed; bottom:0; left:0; right:0; background:var(--hint-bg); color:var(--hint-text); font-family:'DM Mono',monospace; font-size:0.61rem; padding:5px 18px; display:flex; gap:0; align-items:center; letter-spacing:0.03em; z-index:50; flex-wrap:wrap; overflow:hidden; }
-  .keyhint-item { display:flex; align-items:center; gap:3px; padding:0 10px 0 0; }
-  .keyhint-item:first-of-type { padding-left: 10px; border-left: 1px solid var(--hint-key-border); }
-  .keyhint-label { color:var(--hint-text); }
-  .keyhint-bar kbd { color:var(--hint-key); background:var(--hint-key-bg); padding:1px 5px; border:1px solid var(--hint-key-border); font-family:'DM Mono',monospace; font-size:0.6rem; }
-  .keyhint-mode { color:var(--accent); font-size:0.63rem; letter-spacing:0.08em; padding-right:10px; flex-shrink:0; }
+  /* Statusbar (keyhint bar) */
+  .keyhint-bar { position:fixed; bottom:0; left:0; right:0; height:24px; background:var(--accent); color:var(--bg); font-family:'DM Mono',monospace; font-size:0.59rem; padding:0; display:flex; align-items:stretch; letter-spacing:0.03em; z-index:50; overflow:hidden; white-space:nowrap; }
+  .keyhint-mode { background:rgba(0,0,0,0.18); color:var(--bg); font-size:0.59rem; font-weight:bold; letter-spacing:0.1em; padding:0 14px; display:flex; align-items:center; flex-shrink:0; border-right:1px solid rgba(0,0,0,0.12); }
+  .keyhint-item { display:flex; align-items:center; gap:4px; padding:0 10px; border-right:1px solid rgba(0,0,0,0.1); flex-shrink:0; }
+  .keyhint-item:hover { background:rgba(0,0,0,0.1); }
+  .keyhint-label { color:var(--bg); opacity:0.82; }
+  .keyhint-bar kbd { color:var(--bg); background:rgba(0,0,0,0.18); padding:0px 4px; border:none; font-family:'DM Mono',monospace; font-size:0.59rem; border-radius:2px; }
 
   /* Help overlay */
   .help-overlay { position:fixed; inset:0; background:var(--overlay-bg-heavy); display:flex; align-items:center; justify-content:center; z-index:150; padding:24px; }
@@ -419,9 +438,21 @@ const modernStyles = `
   body.modern .btn-muted:hover { color: var(--text); border-color: transparent; background: var(--bg-hover); }
 
   /* Mode toggle */
-  body.modern .mode-toggle { background: none; padding: 0; gap: 0; border-radius: 0; }
-  body.modern .mode-btn { font-family: 'Inter', sans-serif; font-size: 0.7rem; font-weight: 500; padding: 4px 10px; border-radius: 5px; background: none; color: var(--text-muted); letter-spacing: 0; }
-  body.modern .mode-btn.active { background: var(--bg-hover); color: var(--text); box-shadow: none; }
+  body.modern .mode-toggle-btn { font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 500; border: none; border-radius: 5px; color: var(--text-muted); letter-spacing: 0; padding: 4px 10px; }
+  body.modern .mode-toggle-btn:hover { background: var(--bg-hover); color: var(--text); border-color: transparent; }
+
+  /* Topbar — modern */
+  body.modern .topbar { background: var(--bg); border-bottom: 1px solid var(--border); }
+  body.modern .topbar-title { font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 700; letter-spacing: -0.02em; }
+  body.modern .topbar-nav-btn { font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 500; letter-spacing: 0; }
+  body.modern .topbar-view-btn { font-family: 'Inter', sans-serif; }
+  body.modern .topbar-import-btn { font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 500; }
+  body.modern .topbar-new-btn { font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 600; border-radius: 6px; }
+
+  /* Statusbar — modern */
+  body.modern .keyhint-bar { font-family: 'Inter', sans-serif; font-size: 0.6rem; }
+  body.modern .keyhint-mode { font-family: 'Inter', sans-serif; font-weight: 700; letter-spacing: 0.06em; }
+  body.modern .keyhint-bar kbd { font-family: 'Inter', sans-serif; border-radius: 2px; }
 
   /* Scheme dots */
   body.modern .scheme-dot { width: 12px; height: 12px; }
@@ -485,6 +516,8 @@ const modernStyles = `
   body.modern .phase-label { background: none; color: var(--text-muted); font-family: 'Inter', sans-serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 0 0 10px; border-bottom: none; margin-bottom: 2px; gap: 6px; }
   body.modern .phase-label:hover { opacity: 0.65; }
   body.modern .phase-done-summary { font-family: 'Inter', sans-serif; font-size: 0.7rem; color: var(--text-muted); padding: 8px 0; }
+  body.modern .phase-label-focused { background: transparent !important; color: var(--text) !important; opacity: 1 !important; border-bottom: 1px solid var(--accent) !important; }
+  body.modern .phase-done-summary-focused { color: var(--text) !important; }
 
   /* Tasks — pure rows, ultra minimal */
   body.modern .tasks-list { border: none; background: none; }
@@ -526,10 +559,13 @@ const modernStyles = `
     border-top: 1px solid var(--border);
     color: var(--text-muted);
     font-family: 'Inter', sans-serif;
-    font-size: 0.62rem;
-    padding: 7px 32px;
+    font-size: 0.6rem;
+    padding: 5px 32px;
     gap: 0;
     opacity: 1;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    white-space: nowrap;
   }
   body.modern .keyhint-item { padding: 0 12px 0 0; gap: 4px; }
   body.modern .keyhint-item:first-of-type { padding-left: 10px; border-left: 1px solid var(--border); }
@@ -1220,9 +1256,9 @@ function Home({
         onToggleMode();
       } else if (e.key === "v") {
         e.preventDefault();
-        setAndSaveView((v) =>
-          v === "grid" ? "list" : v === "list" ? "compact" : "grid",
-        );
+        const nv =
+          view === "grid" ? "list" : view === "list" ? "compact" : "grid";
+        setAndSaveView(nv);
       } else if (e.key === "Tab") {
         e.preventDefault();
         setFilter((f) =>
@@ -1286,80 +1322,70 @@ function Home({
         style={{ display: "none" }}
         onChange={handleFileChange}
       />
-      <div className="header">
-        <h1 className="serif">Checklists</h1>
-        <div className="header-right">
-          {importErr && <span className="err-msg">{importErr}</span>}
-          <div className="scheme-picker">
-            {SCHEMES.map((s) => (
-              <div
-                key={s.id}
-                className={`scheme-dot${s.id === scheme?.id ? " active" : ""}`}
-                style={{
-                  background: s.bg,
-                  border: `2px solid ${s.borderStrong}`,
-                }}
-                title={s.name}
-                onClick={() => onCycleScheme(s)}
-              />
-            ))}
-          </div>
-          <div className="mode-toggle">
-            <button
-              className={`mode-btn${uiMode === "classic" ? " active" : ""}`}
-              onClick={() => uiMode !== "classic" && onToggleMode()}
-            >
-              classic
-            </button>
-            <button
-              className={`mode-btn${uiMode === "modern" ? " active" : ""}`}
-              onClick={() => uiMode !== "modern" && onToggleMode()}
-            >
-              modern
-            </button>
-          </div>
-          <button
-            className="btn btn-muted"
-            onClick={() => fileRef.current?.click()}
-          >
-            ↑ Import
-          </button>
-          <button className="btn btn-dark" onClick={onNew}>
-            + New
-          </button>
+      <div className="topbar">
+        <div className="topbar-brand">
+          <span className="topbar-logo">✦</span>
+          <h1 className="topbar-title serif">Checklists</h1>
         </div>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          marginBottom: 14,
-          flexWrap: "wrap",
-        }}
-      >
-        <div className="filter-tabs">
+        <div className="topbar-nav">
           {["active", "all", "archived"].map((f) => (
             <button
               key={f}
-              className={`filter-tab${filter === f ? " active" : ""}`}
+              className={`topbar-nav-btn${filter === f ? " active" : ""}`}
               onClick={() => setFilter(f)}
             >
               {f}
             </button>
           ))}
         </div>
-        <div className="view-toggle">
-          {["grid", "list", "compact"].map((v) => (
-            <button
-              key={v}
-              className={`view-btn${view === v ? " active" : ""}`}
-              onClick={() => setAndSaveView(v)}
-            >
-              {v}
-            </button>
-          ))}
+        <div className="topbar-actions">
+          {importErr && <span className="err-msg">{importErr}</span>}
+          <div className="topbar-views">
+            {[
+              ["grid", "▦"],
+              ["list", "▤"],
+              ["compact", "▣"],
+            ].map(([v, icon]) => (
+              <button
+                key={v}
+                className={`topbar-view-btn${view === v ? " active" : ""}`}
+                onClick={() => setAndSaveView(v)}
+                title={v}
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
+          <div className="topbar-divider" />
+          <div className="scheme-picker">
+            {SCHEMES.map((s) => (
+              <div
+                key={s.id}
+                className={`scheme-dot${s.id === scheme?.id ? " active" : ""}`}
+                style={{ background: s.bg }}
+                title={s.name}
+                onClick={() => onCycleScheme(s)}
+              />
+            ))}
+          </div>
+          <button
+            className="mode-toggle-btn"
+            onClick={onToggleMode}
+            title={`Switch to ${uiMode === "classic" ? "modern" : "classic"} mode`}
+          >
+            {uiMode === "classic" ? "◈" : "◇"}
+          </button>
+          <div className="topbar-divider" />
+          <button
+            className="topbar-import-btn"
+            onClick={() => fileRef.current?.click()}
+            title="Import JSON"
+          >
+            ↑ Import
+          </button>
+          <button className="topbar-new-btn" onClick={onNew}>
+            + New
+          </button>
         </div>
       </div>
 
@@ -1697,20 +1723,17 @@ function Detail({
       });
     }
     onChange({ ...checklist, phases: newPhases });
-    setTimeout(() => {
-      const nai = newPhases.flatMap((ph) => [
-        ...ph.tasks.map((t) => ({
-          type: "task",
-          phaseId: ph.id,
-          taskId: t.id,
-        })),
-        { type: "add", phaseId: ph.id },
-      ]);
-      const ni = nai.findIndex(
-        (it) => it.type === "task" && it.taskId === taskId,
-      );
-      if (ni !== -1) setFocusIdx(ni);
-    }, 0);
+    // Recompute flat index in new layout to follow the moved task
+    const nai = newPhases.flatMap((ph) => [
+      ...(!collapsedPhases.has(ph.id)
+        ? ph.tasks.map((t) => ({ type: "task", phaseId: ph.id, taskId: t.id }))
+        : []),
+      { type: "add", phaseId: ph.id },
+    ]);
+    const ni = nai.findIndex(
+      (it) => it.type === "task" && it.taskId === taskId,
+    );
+    if (ni !== -1) setFocusIdx(ni);
   };
 
   const deleteTask = () => {
@@ -1940,8 +1963,10 @@ function Detail({
       ) {
         if (showSearch && e.key === "Escape") {
           e.preventDefault();
+          e.stopPropagation();
           setShowSearch(false);
           setSearch("");
+          return;
         }
         return;
       }
@@ -2067,7 +2092,10 @@ function Detail({
         enterVisualMode(focusIdx);
       } else if (e.key === "Escape" || e.key === "b") {
         e.preventDefault();
-        if (confirmDelete) setConfirmDelete(false);
+        if (showSearch) {
+          setShowSearch(false);
+          setSearch("");
+        } else if (confirmDelete) setConfirmDelete(false);
         else if (confirmTaskDelete) {
           setConfirmTaskDelete(false);
           setDdPending(false);
@@ -2244,6 +2272,7 @@ function Detail({
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 e.preventDefault();
+                e.stopPropagation();
                 setShowSearch(false);
                 setSearch("");
               } else if (e.key === "Enter") {
@@ -2341,19 +2370,15 @@ function Detail({
           search &&
           (ph.label.toLowerCase().includes(search.toLowerCase()) ||
             ph.title.toLowerCase().includes(search.toLowerCase()));
+        const addIdx = allItems.findIndex(
+          (it) => it.type === "add" && it.phaseId === ph.id,
+        );
+        const isPhaseFocused = addIdx === focusIdx && isCollapsed;
         return (
           <div className="phase-section" key={ph.id}>
             <div
-              className="phase-label"
               data-phase-id={ph.id}
-              style={
-                isSearchMatch
-                  ? {
-                      outline: "2px solid var(--accent)",
-                      outlineOffset: "-2px",
-                    }
-                  : {}
-              }
+              className={`phase-label${isPhaseFocused ? " phase-label-focused" : ""}${isSearchMatch ? " phase-label-search" : ""}`}
               onClick={() => toggleCollapse(ph.id)}
             >
               <span>●</span>
@@ -2368,7 +2393,9 @@ function Detail({
             </div>
 
             {isCollapsed ? (
-              <div className="phase-done-summary">
+              <div
+                className={`phase-done-summary${isPhaseFocused ? " phase-done-summary-focused" : ""}`}
+              >
                 {(() => {
                   const done = ph.tasks.filter((t) => t.done).length;
                   const total = ph.tasks.length;
