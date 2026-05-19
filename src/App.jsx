@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
 // ──── Constants & Schemes ─────────────────────────────────────────────────────
 
@@ -2780,17 +2780,14 @@ function PlainContent({
     handleChange({ ...cl, phases: newPhases });
     const ph = newPhases.find((p) => p.id === phaseId);
     if (ph && ph.tasks.every((t) => t.done))
-      setTimeout(
-        () => {
-          setCollapsedPhases((s) => {
-            const n = new Set(s);
-            n.add(phaseId);
-            return n;
-          });
-          setFocusIdx(itemIdx);
-        },
-        400,
-      );
+      setTimeout(() => {
+        setCollapsedPhases((s) => {
+          const n = new Set(s);
+          n.add(phaseId);
+          return n;
+        });
+        setFocusIdx(itemIdx);
+      }, 400);
     else
       setCollapsedPhases((s) => {
         const n = new Set(s);
@@ -3134,10 +3131,7 @@ function PlainContent({
           {confirmDelete ? (
             <span className="plain-confirm">
               delete?{" "}
-              <button
-                className="plain-confirm-btn yes"
-                onClick={handleDelete}
-              >
+              <button className="plain-confirm-btn yes" onClick={handleDelete}>
                 yes
               </button>
               <button
@@ -3311,9 +3305,7 @@ function PlainContent({
                   <button
                     className={`plain-add-link${isAddFocused && focusArea === "content" ? " focused" : ""}`}
                     ref={
-                      isAddFocused && focusArea === "content"
-                        ? focusRef
-                        : null
+                      isAddFocused && focusArea === "content" ? focusRef : null
                     }
                     onClick={() => {
                       setFocusArea("content");
@@ -3392,7 +3384,14 @@ function PlainApp({
   const [modal, setModal] = useState(null);
   const [sidebarFocus, setSidebarFocus] = useState(0);
   const [focusArea, setFocusArea] = useState("sidebar"); // sidebar | content
+  const [filter, setFilter] = useState("active"); // active | all | archived
   const fileRef = useRef(null);
+
+  const filteredChecklists = useMemo(() => checklists.filter((cl) => {
+    if (filter === "active" && cl.archived) return false;
+    if (filter === "archived" && !cl.archived) return false;
+    return true;
+  }), [checklists, filter]);
 
   const active = checklists.find((cl) => cl.id === activeId) || null;
 
@@ -3418,14 +3417,14 @@ function PlainApp({
         return;
       if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
-        setSidebarFocus((i) => Math.min(i + 1, checklists.length - 1));
+        setSidebarFocus((i) => Math.min(i + 1, filteredChecklists.length - 1));
       } else if (e.key === "k" || e.key === "ArrowUp") {
         e.preventDefault();
         setSidebarFocus((i) => Math.max(i - 1, 0));
       } else if (e.key === "Enter" || e.key === "l" || e.key === "ArrowRight") {
         e.preventDefault();
-        if (checklists[sidebarFocus]) {
-          setActiveId(checklists[sidebarFocus].id);
+        if (filteredChecklists[sidebarFocus]) {
+          setActiveId(filteredChecklists[sidebarFocus].id);
           setFocusArea("content");
         }
       } else if (e.key === "n") {
@@ -3434,6 +3433,12 @@ function PlainApp({
       } else if (e.key === "i") {
         e.preventDefault();
         fileRef.current?.click();
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        setFilter((f) =>
+          f === "active" ? "all" : f === "all" ? "archived" : "active",
+        );
+        setSidebarFocus(0);
       } else if (e.key === "T") {
         e.preventDefault();
         onCycleScheme();
@@ -3441,17 +3446,17 @@ function PlainApp({
         e.preventDefault();
         onToggleMode();
       } else if (e.key === "g") setSidebarFocus(0);
-      else if (e.key === "G") setSidebarFocus(checklists.length - 1);
+      else if (e.key === "G") setSidebarFocus(filteredChecklists.length - 1);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [focusArea, sidebarFocus, checklists]);
+  }, [focusArea, sidebarFocus, filteredChecklists, onCycleScheme, onToggleMode]);
 
   // Sync sidebarFocus with activeId
   useEffect(() => {
-    const idx = checklists.findIndex((cl) => cl.id === activeId);
+    const idx = filteredChecklists.findIndex((cl) => cl.id === activeId);
     if (idx !== -1) setSidebarFocus(idx);
-  }, [activeId]);
+  }, [activeId, filteredChecklists]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -3480,8 +3485,13 @@ function PlainApp({
 
       {/* Sidebar */}
       <div className="plain-sidebar" onClick={() => setFocusArea("sidebar")}>
-        <div className="plain-sidebar-title">checklists</div>
-        {checklists.map((cl, idx) => {
+        <div className="plain-sidebar-title">
+          checklists
+          <span style={{ opacity: 0.4, fontSize: "0.65rem", marginLeft: "4px" }}>
+            [{filter}]
+          </span>
+        </div>
+        {filteredChecklists.map((cl, idx) => {
           const { done, total } = getProgress(cl);
           return (
             <div
@@ -3514,6 +3524,7 @@ function PlainApp({
                   { key: "j/k", label: "nav" },
                   { key: "l/Enter", label: "open" },
                   { key: "n", label: "new" },
+                  { key: "Tab", label: `filter:${filter}` },
                   { key: "M", label: "mode" },
                   { key: "T", label: "theme" },
                 ]
