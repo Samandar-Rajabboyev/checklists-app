@@ -153,7 +153,7 @@ const applyScheme = (s) => {
 
 const loadMode = () => {
   const m = ls.get("uimode");
-  return ["classic", "modern", "tui"].includes(m) ? m : "classic";
+  return ["classic", "modern", "plain"].includes(m) ? m : "classic";
 };
 const saveMode = (m) => ls.set("uimode", m);
 
