@@ -151,7 +151,10 @@ const applyScheme = (s) => {
   r.setProperty("--accent", s.accent);
 };
 
-const loadMode = () => ls.get("uimode") || "classic";
+const loadMode = () => {
+  const m = ls.get("uimode");
+  return ["classic", "modern", "tui"].includes(m) ? m : "classic";
+};
 const saveMode = (m) => ls.set("uimode", m);
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -604,6 +607,101 @@ const modernStyles = `
 
   /* Empty state */
   body.modern .empty { font-family: 'Inter', sans-serif; font-weight: 400; }
+`;
+
+const plainStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+  body.plain { font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; background: var(--bg); color: var(--text); }
+  body.plain * { font-family: inherit; }
+
+  /* Full page layout — sidebar + content */
+  body.plain .plain-layout { display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  body.plain .plain-sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; padding: 48px 0 24px; display: flex; flex-direction: column; }
+  body.plain .plain-sidebar-title { font-size: 0.65rem; color: var(--text-muted); padding: 0 16px 8px; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  body.plain .plain-sidebar-item { display: flex; align-items: center; gap: 6px; padding: 3px 16px; font-size: 0.78rem; cursor: pointer; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none; }
+  body.plain .plain-sidebar-item:hover { color: var(--text); }
+  body.plain .plain-sidebar-item.active { color: var(--text); background: var(--bg-hover); }
+  body.plain .plain-sidebar-item.focused { color: var(--text); background: var(--bg-hover); outline: none; }
+  body.plain .plain-sidebar-item .si-icon { flex-shrink: 0; font-size: 0.7rem; opacity: 0.5; }
+  body.plain .plain-sidebar-item .si-progress { font-size: 0.62rem; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
+  body.plain .plain-sidebar-new { padding: 8px 16px 0; border-top: 1px solid var(--border); margin-top: 8px; }
+  body.plain .plain-sidebar-new button { background: none; border: none; color: var(--text-muted); font-size: 0.72rem; cursor: pointer; padding: 0; }
+  body.plain .plain-sidebar-new button:hover { color: var(--text); }
+
+  /* Main content */
+  body.plain .plain-main { flex: 1; overflow-y: auto; padding: 48px 48px 80px; }
+
+  /* Plain header */
+  body.plain .plain-header { margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+  body.plain .plain-header-title { font-size: 1rem; font-weight: 500; margin-bottom: 4px; }
+  body.plain .plain-header-meta { font-size: 0.7rem; color: var(--text-muted); display: flex; gap: 16px; }
+  body.plain .plain-header-actions { display: flex; gap: 16px; margin-top: 8px; }
+  body.plain .plain-header-action { background: none; border: none; font-size: 0.7rem; color: var(--text-muted); cursor: pointer; padding: 0; }
+  body.plain .plain-header-action:hover { color: var(--text); }
+  body.plain .plain-header-action.danger:hover { color: #e06c75; }
+
+  /* Progress line */
+  body.plain .plain-progress { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+  body.plain .plain-progress-bar { flex: 1; max-width: 160px; height: 1px; background: var(--border); position: relative; }
+  body.plain .plain-progress-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--text-muted); }
+
+  /* Phase */
+  body.plain .plain-phase { margin-bottom: 20px; }
+  body.plain .plain-phase-header { display: flex; align-items: baseline; gap: 8px; cursor: pointer; padding: 2px 0; user-select: none; }
+  body.plain .plain-phase-header:hover .plain-phase-name { color: var(--text); }
+  body.plain .plain-phase-arrow { font-size: 0.7rem; color: var(--text-muted); width: 10px; flex-shrink: 0; }
+  body.plain .plain-phase-name { font-size: 0.82rem; font-weight: 500; color: var(--text-muted); }
+  body.plain .plain-phase-name.focused { color: var(--text); }
+  body.plain .plain-phase-summary { font-size: 0.72rem; color: var(--text-muted); margin-left: 4px; }
+
+  /* Tasks */
+  body.plain .plain-tasks { padding-left: 18px; margin-top: 4px; }
+  body.plain .plain-task { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; cursor: pointer; font-size: 0.78rem; color: var(--text-muted); }
+  body.plain .plain-task:hover { color: var(--text); }
+  body.plain .plain-task.focused { color: var(--text); }
+  body.plain .plain-task.selected { color: var(--accent); }
+  body.plain .plain-task-num { color: var(--text-muted); opacity: 0.4; font-size: 0.68rem; width: 18px; text-align: right; flex-shrink: 0; }
+  body.plain .plain-task-check { flex-shrink: 0; color: var(--text-muted); font-size: 0.78rem; }
+  body.plain .plain-task-check.done { color: var(--text); }
+  body.plain .plain-task-text { flex: 1; line-height: 1.5; color: var(--text); }
+  body.plain .plain-task-text.done { text-decoration: line-through; color: var(--text-muted); opacity: 0.5; }
+  body.plain .plain-task.focused .plain-task-num { color: var(--accent); opacity: 1; }
+  body.plain .plain-task.focused::before { content: ''; }
+
+  /* Add task inline */
+  body.plain .plain-add-task { padding: 2px 0; padding-left: 26px; }
+  body.plain .plain-add-task input { background: none; border: none; border-bottom: 1px solid var(--border); font-size: 0.78rem; color: var(--text); outline: none; width: 200px; padding: 1px 4px; }
+  body.plain .plain-add-link { background: none; border: none; font-size: 0.72rem; color: var(--text-muted); cursor: pointer; padding: 2px 0; opacity: 0.4; }
+  body.plain .plain-add-link:hover { opacity: 1; }
+  body.plain .plain-add-link.focused { opacity: 1; color: var(--accent); }
+
+  /* Confirm */
+  body.plain .plain-confirm { font-size: 0.72rem; color: var(--text-muted); display: inline-flex; gap: 8px; }
+  body.plain .plain-confirm-btn { background: none; border: none; font-size: 0.72rem; cursor: pointer; text-decoration: underline; color: var(--text-muted); padding: 0; }
+  body.plain .plain-confirm-btn:hover { color: var(--text); }
+  body.plain .plain-confirm-btn.yes { color: #e06c75; }
+
+  /* Home screen in plain mode */
+  body.plain .plain-home { display: flex; height: 100vh; overflow: hidden; }
+  body.plain .plain-home-sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; padding: 48px 0 24px; }
+  body.plain .plain-home-main { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.78rem; }
+  body.plain .plain-home-hint { text-align: center; line-height: 2; }
+
+  /* Statusbar override */
+  body.plain .keyhint-bar { font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; }
+  body.plain .keyhint-mode { font-family: inherit; }
+  body.plain .keyhint-bar kbd { font-family: inherit; }
+
+  /* Search overlay */
+  body.plain .detail-search { border-radius: 0; font-family: inherit; border: 1px solid var(--border); box-shadow: none; }
+  body.plain .detail-search input { font-family: inherit; font-size: 0.78rem; }
+
+  /* Hide topbar in plain mode */
+  body.plain .topbar { display: none; }
+  body.plain .app { display: none; }
 `;
 
 // ──── Confetti ────────────────────────────────────────────────────────────────
@@ -1373,7 +1471,7 @@ function Home({
             onClick={onToggleMode}
             title={`Switch to ${uiMode === "classic" ? "modern" : "classic"} mode`}
           >
-            {uiMode === "classic" ? "◈" : "◇"}
+            {uiMode === "classic" ? "◈" : uiMode === "modern" ? "◫" : "◇"}
           </button>
           <div className="topbar-divider" />
           <button
@@ -2572,6 +2670,911 @@ function Detail({
   );
 }
 
+// ──── Plain Content ──────────────────────────────────────────────────────────
+
+function PlainContent({
+  cl,
+  handleChange,
+  handleDelete,
+  handleArchive,
+  onExport,
+  setModal,
+  focusArea,
+  setFocusArea,
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmTaskDel, setConfirmTaskDel] = useState(false);
+  const [ddPending, setDdPending] = useState(false);
+  const ddTimer = useRef(null);
+  const [addingTask, setAddingTask] = useState(null);
+  const [search, setSearch] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchIdx, setSearchIdx] = useState(0);
+  const [visualMode, setVisualMode] = useState(false);
+  const [visualAnchor, setVisualAnchor] = useState(null);
+  const [selected, setSelected] = useState(new Set());
+  const [collapsedPhases, setCollapsedPhases] = useState(() => {
+    const s = new Set();
+    cl.phases.forEach((ph) => {
+      if (ph.tasks.length > 0 && ph.tasks.every((t) => t.done)) s.add(ph.id);
+    });
+    return s;
+  });
+  const searchRef = useRef(null);
+  const focusRef = useRef(null);
+
+  const toggleCollapse = (id) =>
+    setCollapsedPhases((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+
+  // Flat items for keyboard nav
+  const allItems = cl.phases.flatMap((ph) => [
+    ...(!collapsedPhases.has(ph.id)
+      ? ph.tasks.map((t) => ({ type: "task", phaseId: ph.id, taskId: t.id }))
+      : []),
+    { type: "add", phaseId: ph.id },
+  ]);
+  const [focusIdx, setFocusIdx] = useState(0);
+
+  // Search matches
+  const searchMatches = (() => {
+    if (!search.trim()) return [];
+    const q = search.toLowerCase();
+    const ms = [];
+    cl.phases.forEach((ph) => {
+      if (
+        ph.label.toLowerCase().includes(q) ||
+        ph.title.toLowerCase().includes(q)
+      )
+        ms.push({ type: "phase", phaseId: ph.id });
+      ph.tasks.forEach((t) => {
+        if (t.text.toLowerCase().includes(q))
+          ms.push({ type: "task", phaseId: ph.id, taskId: t.id });
+      });
+    });
+    return ms;
+  })();
+  const currentMatch = searchMatches[searchIdx];
+
+  useEffect(() => {
+    if (!currentMatch) return;
+    setTimeout(() => {
+      const el =
+        currentMatch.type === "phase"
+          ? document.querySelector(
+              `[data-plain-phase="${currentMatch.phaseId}"]`,
+            )
+          : document.querySelector(
+              `[data-plain-task="${currentMatch.taskId}"]`,
+            );
+      if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 30);
+  }, [searchIdx, search]);
+
+  useEffect(() => {
+    if (focusRef.current)
+      focusRef.current.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+  }, [focusIdx]);
+
+  const { done, total } = getProgress(cl);
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  const toggleTask = (phaseId, taskId) => {
+    const itemIdx = focusIdx;
+    const newPhases = cl.phases.map((ph) =>
+      ph.id !== phaseId
+        ? ph
+        : {
+            ...ph,
+            tasks: ph.tasks.map((t) =>
+              t.id !== taskId ? t : { ...t, done: !t.done },
+            ),
+          },
+    );
+    handleChange({ ...cl, phases: newPhases });
+    const ph = newPhases.find((p) => p.id === phaseId);
+    if (ph && ph.tasks.every((t) => t.done))
+      setTimeout(
+        () => {
+          setCollapsedPhases((s) => {
+            const n = new Set(s);
+            n.add(phaseId);
+            return n;
+          });
+          setFocusIdx(itemIdx);
+        },
+        400,
+      );
+    else
+      setCollapsedPhases((s) => {
+        const n = new Set(s);
+        n.delete(phaseId);
+        return n;
+      });
+    setFocusIdx(itemIdx);
+  };
+
+  const deleteTaskFn = () => {
+    if (visualMode && selected.size > 0) {
+      const ids = selected;
+      handleChange({
+        ...cl,
+        phases: cl.phases.map((ph) => ({
+          ...ph,
+          tasks: ph.tasks.filter((t) => !ids.has(t.id)),
+        })),
+      });
+      setVisualMode(false);
+      setVisualAnchor(null);
+      setSelected(new Set());
+    } else {
+      const item = allItems[focusIdx];
+      if (!item || item.type !== "task") return;
+      handleChange({
+        ...cl,
+        phases: cl.phases.map((ph) =>
+          ph.id !== item.phaseId
+            ? ph
+            : { ...ph, tasks: ph.tasks.filter((t) => t.id !== item.taskId) },
+        ),
+      });
+      setFocusIdx((i) => Math.max(0, i - 1));
+    }
+    setConfirmTaskDel(false);
+    setDdPending(false);
+  };
+
+  const moveTask = (taskId, fromPhaseId, dir) => {
+    const phases = cl.phases;
+    const pi = phases.findIndex((p) => p.id === fromPhaseId);
+    const ti = phases[pi].tasks.findIndex((t) => t.id === taskId);
+    const task = phases[pi].tasks[ti];
+    let newPhases;
+    if (dir === "up" || dir === "down") {
+      const ni = dir === "up" ? ti - 1 : ti + 1;
+      if (ni < 0 || ni >= phases[pi].tasks.length) return;
+      const tasks = [...phases[pi].tasks];
+      tasks.splice(ti, 1);
+      tasks.splice(ni, 0, task);
+      newPhases = phases.map((p) =>
+        p.id !== fromPhaseId ? p : { ...p, tasks },
+      );
+    } else {
+      const tpi = dir === "left" ? pi - 1 : pi + 1;
+      if (tpi < 0 || tpi >= phases.length) return;
+      newPhases = phases.map((p, i) => {
+        if (p.id === fromPhaseId)
+          return { ...p, tasks: p.tasks.filter((t) => t.id !== taskId) };
+        if (i === tpi)
+          return {
+            ...p,
+            tasks: dir === "left" ? [...p.tasks, task] : [task, ...p.tasks],
+          };
+        return p;
+      });
+    }
+    handleChange({ ...cl, phases: newPhases });
+    const nai = newPhases.flatMap((ph) => [
+      ...(!collapsedPhases.has(ph.id)
+        ? ph.tasks.map((t) => ({
+            type: "task",
+            phaseId: ph.id,
+            taskId: t.id,
+          }))
+        : []),
+      { type: "add", phaseId: ph.id },
+    ]);
+    const ni = nai.findIndex(
+      (it) => it.type === "task" && it.taskId === taskId,
+    );
+    if (ni !== -1) setFocusIdx(ni);
+  };
+
+  // Keyboard
+  useEffect(() => {
+    if (focusArea !== "content") return;
+    const h = (e) => {
+      if (
+        document.activeElement.tagName === "INPUT" ||
+        document.activeElement.tagName === "TEXTAREA"
+      ) {
+        if (showSearch && e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowSearch(false);
+          setSearch("");
+        }
+        return;
+      }
+      if (showSearch) {
+        if (e.key === "Escape") {
+          setShowSearch(false);
+          setSearch("");
+          return;
+        }
+        if (e.key === "n" && !e.shiftKey) {
+          e.preventDefault();
+          setSearchIdx((i) => (i + 1) % Math.max(searchMatches.length, 1));
+          return;
+        }
+        if (e.key === "N") {
+          e.preventDefault();
+          setSearchIdx(
+            (i) =>
+              (i - 1 + Math.max(searchMatches.length, 1)) %
+              Math.max(searchMatches.length, 1),
+          );
+          return;
+        }
+      }
+      const item = allItems[focusIdx];
+      if (visualMode) {
+        if (e.key === "j" || e.key === "ArrowDown") {
+          e.preventDefault();
+          const n = Math.min(focusIdx + 1, allItems.length - 1);
+          setFocusIdx(n);
+        } else if (e.key === "k" || e.key === "ArrowUp") {
+          e.preventDefault();
+          const n = Math.max(focusIdx - 1, 0);
+          setFocusIdx(n);
+        } else if (e.key === "x" || e.key === "Enter") {
+          e.preventDefault(); /* toggle all selected */
+        } else if (e.key === "J") {
+          e.preventDefault(); /* moveSelected down */
+        } else if (e.key === "K") {
+          e.preventDefault(); /* moveSelected up */
+        } else if (e.key === "d") {
+          e.preventDefault();
+          if (confirmTaskDel) deleteTaskFn();
+          else if (ddPending) {
+            clearTimeout(ddTimer.current);
+            setDdPending(false);
+            setConfirmTaskDel(true);
+          } else {
+            setDdPending(true);
+            ddTimer.current = setTimeout(() => setDdPending(false), 400);
+          }
+        } else if (e.key === "y" && confirmTaskDel) {
+          e.preventDefault();
+          deleteTaskFn();
+        } else if (e.key === "n" && confirmTaskDel) {
+          e.preventDefault();
+          setConfirmTaskDel(false);
+          setDdPending(false);
+        } else if (e.key === "V" || e.key === "Escape") {
+          e.preventDefault();
+          setVisualMode(false);
+          setVisualAnchor(null);
+          setSelected(new Set());
+        }
+        return;
+      }
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.min(i + 1, allItems.length - 1));
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.max(i - 1, 0));
+      } else if (e.key === "h" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        setFocusArea("sidebar");
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "d") {
+        e.preventDefault();
+        window.scrollBy({
+          top: window.innerHeight * 0.5,
+          behavior: "smooth",
+        });
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "u") {
+        e.preventDefault();
+        window.scrollBy({
+          top: -window.innerHeight * 0.5,
+          behavior: "smooth",
+        });
+      } else if (
+        (e.key === "Enter" || e.key === " " || e.key === "x") &&
+        item
+      ) {
+        e.preventDefault();
+        if (item.type === "task") toggleTask(item.phaseId, item.taskId);
+        if (item.type === "add") setAddingTask(item.phaseId);
+      } else if (e.key === "V" && item?.type === "task") {
+        e.preventDefault();
+        setVisualMode(true);
+        setVisualAnchor(focusIdx);
+        setSelected(new Set([item.taskId]));
+      } else if (e.key === "z") {
+        e.preventDefault();
+        if (item) toggleCollapse(item.phaseId);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        if (showSearch) {
+          setShowSearch(false);
+          setSearch("");
+        } else if (confirmDelete) setConfirmDelete(false);
+        else if (confirmTaskDel) {
+          setConfirmTaskDel(false);
+          setDdPending(false);
+        } else setFocusArea("sidebar");
+      } else if (e.key === "e") {
+        e.preventDefault();
+        setModal("edit");
+      } else if (e.key === "a") {
+        e.preventDefault();
+        handleArchive();
+      } else if (e.key === "E") {
+        e.preventDefault();
+        onExport(cl.id);
+      } else if (e.key === "d" && !confirmDelete) {
+        e.preventDefault();
+        if (confirmTaskDel) deleteTaskFn();
+        else if (ddPending) {
+          clearTimeout(ddTimer.current);
+          setDdPending(false);
+          setConfirmTaskDel(true);
+        } else {
+          setDdPending(true);
+          ddTimer.current = setTimeout(() => {
+            setDdPending(false);
+            setConfirmDelete(true);
+          }, 400);
+        }
+      } else if (e.key === "y" && confirmDelete) {
+        e.preventDefault();
+        handleDelete();
+      } else if (e.key === "n" && confirmDelete) {
+        e.preventDefault();
+        setConfirmDelete(false);
+      } else if (e.key === "y" && confirmTaskDel) {
+        e.preventDefault();
+        deleteTaskFn();
+      } else if (e.key === "n" && confirmTaskDel) {
+        e.preventDefault();
+        setConfirmTaskDel(false);
+        setDdPending(false);
+      } else if (e.key === "J" && item?.type === "task") {
+        e.preventDefault();
+        moveTask(item.taskId, item.phaseId, "down");
+      } else if (e.key === "K" && item?.type === "task") {
+        e.preventDefault();
+        moveTask(item.taskId, item.phaseId, "up");
+      } else if (e.key === "H" && item?.type === "task") {
+        e.preventDefault();
+        moveTask(item.taskId, item.phaseId, "left");
+      } else if (e.key === "L" && item?.type === "task") {
+        e.preventDefault();
+        moveTask(item.taskId, item.phaseId, "right");
+      } else if (e.key === "/") {
+        e.preventDefault();
+        setShowSearch(true);
+        setTimeout(() => searchRef.current?.focus(), 30);
+      } else if (e.key === "g") setFocusIdx(0);
+      else if (e.key === "G") setFocusIdx(allItems.length - 1);
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [
+    focusArea,
+    focusIdx,
+    allItems,
+    showSearch,
+    searchMatches,
+    searchIdx,
+    visualMode,
+    confirmDelete,
+    confirmTaskDel,
+    ddPending,
+    cl,
+    collapsedPhases,
+  ]);
+
+  const mode = visualMode ? `VISUAL (${selected.size})` : "NORMAL";
+
+  return (
+    <div className="plain-main">
+      {showSearch && (
+        <div className="detail-search">
+          <span className="detail-search-icon">⌕</span>
+          <input
+            ref={searchRef}
+            value={search}
+            placeholder="search…"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setSearchIdx(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowSearch(false);
+                setSearch("");
+              } else if (e.key === "Enter") {
+                e.preventDefault();
+                setSearchIdx(
+                  (i) => (i + 1) % Math.max(searchMatches.length, 1),
+                );
+              }
+            }}
+          />
+          {search && (
+            <span className="detail-search-info">
+              {searchMatches.length
+                ? `${searchIdx + 1}/${searchMatches.length}`
+                : "no match"}
+            </span>
+          )}
+          <button
+            className="detail-search-close"
+            onClick={() => {
+              setShowSearch(false);
+              setSearch("");
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      <div className="plain-header">
+        <div className="plain-header-title">
+          {cl.emoji} {cl.title}
+        </div>
+        <div className="plain-header-meta">
+          {cl.description && <span>{cl.description}</span>}
+          {cl.total_days && <span>~{cl.total_days} days</span>}
+          {cl.archived && <span>[archived]</span>}
+        </div>
+        <div className="plain-header-actions">
+          {confirmDelete ? (
+            <span className="plain-confirm">
+              delete?{" "}
+              <button
+                className="plain-confirm-btn yes"
+                onClick={handleDelete}
+              >
+                yes
+              </button>
+              <button
+                className="plain-confirm-btn"
+                onClick={() => setConfirmDelete(false)}
+              >
+                no
+              </button>
+            </span>
+          ) : (
+            <>
+              <button
+                className="plain-header-action"
+                onClick={() => setModal("edit")}
+              >
+                [e] edit
+              </button>
+              <button className="plain-header-action" onClick={handleArchive}>
+                [a] {cl.archived ? "unarchive" : "archive"}
+              </button>
+              <button
+                className="plain-header-action"
+                onClick={() => onExport(cl.id)}
+              >
+                [E] export
+              </button>
+              <button
+                className="plain-header-action danger"
+                onClick={() => setConfirmDelete(true)}
+              >
+                [d] delete
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="plain-progress">
+        <span>
+          {done}/{total} tasks
+        </span>
+        <div className="plain-progress-bar">
+          <div className="plain-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <span>{pct}%</span>
+      </div>
+
+      {cl.phases.map((ph) => {
+        const isCollapsed = collapsedPhases.has(ph.id);
+        const phDone = ph.tasks.filter((t) => t.done).length;
+        const addIdx = allItems.findIndex(
+          (it) => it.type === "add" && it.phaseId === ph.id,
+        );
+        const isAddFocused = addIdx === focusIdx;
+        const isPhFocused = isCollapsed && isAddFocused;
+
+        return (
+          <div className="plain-phase" key={ph.id}>
+            <div
+              className="plain-phase-header"
+              data-plain-phase={ph.id}
+              onClick={() => toggleCollapse(ph.id)}
+            >
+              <span className="plain-phase-arrow">
+                {isCollapsed ? "▶" : "▼"}
+              </span>
+              <span
+                className={`plain-phase-name${isPhFocused ? " focused" : ""}`}
+              >
+                {ph.label}
+                {ph.title ? ` - ${ph.title}` : ""}
+              </span>
+              {isCollapsed && (
+                <span className="plain-phase-summary">
+                  {phDone === ph.tasks.length
+                    ? `✓ ${ph.tasks.length} tasks`
+                    : `${phDone}/${ph.tasks.length} tasks`}
+                </span>
+              )}
+            </div>
+
+            {!isCollapsed && (
+              <div className="plain-tasks">
+                {ph.tasks.map((task, ti) => {
+                  const flatIdx = allItems.findIndex(
+                    (it) => it.type === "task" && it.taskId === task.id,
+                  );
+                  const isFocused =
+                    flatIdx === focusIdx && focusArea === "content";
+                  const isSelected = selected.has(task.id);
+                  const isMatch =
+                    search &&
+                    task.text.toLowerCase().includes(search.toLowerCase());
+                  const isCurrent =
+                    currentMatch?.type === "task" &&
+                    currentMatch.taskId === task.id;
+                  return (
+                    <div
+                      key={task.id}
+                      data-plain-task={task.id}
+                      className={`plain-task${isFocused ? " focused" : ""}${isSelected ? " selected" : ""}`}
+                      ref={isFocused ? focusRef : null}
+                      style={isCurrent ? { color: "var(--accent)" } : {}}
+                      onClick={() => {
+                        setFocusArea("content");
+                        setFocusIdx(flatIdx);
+                        toggleTask(ph.id, task.id);
+                      }}
+                      onMouseEnter={() => {
+                        if (focusArea === "content") setFocusIdx(flatIdx);
+                      }}
+                    >
+                      <span className="plain-task-num">{ti + 1}</span>
+                      <span
+                        className={`plain-task-check${task.done ? " done" : ""}`}
+                      >
+                        {task.done ? "[x]" : "[ ]"}
+                      </span>
+                      <span
+                        className={`plain-task-text${task.done ? " done" : ""}`}
+                        style={
+                          isMatch && !isCurrent
+                            ? { textDecoration: "underline" }
+                            : {}
+                        }
+                      >
+                        {task.text}
+                      </span>
+                      {task.tag && (
+                        <span style={{ opacity: 0.4, fontSize: "0.66rem" }}>
+                          [{task.tag}]
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+                {addingTask === ph.id ? (
+                  <div className="plain-add-task">
+                    <input
+                      autoFocus
+                      placeholder="new task…"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && e.target.value.trim()) {
+                          handleChange({
+                            ...cl,
+                            phases: cl.phases.map((p) =>
+                              p.id !== ph.id
+                                ? p
+                                : {
+                                    ...p,
+                                    tasks: [
+                                      ...p.tasks,
+                                      {
+                                        id: uid(),
+                                        text: e.target.value.trim(),
+                                        done: false,
+                                      },
+                                    ],
+                                  },
+                            ),
+                          });
+                          e.target.value = "";
+                          setAddingTask(null);
+                        }
+                        if (e.key === "Escape") setAddingTask(null);
+                      }}
+                      onBlur={() => setAddingTask(null)}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    className={`plain-add-link${isAddFocused && focusArea === "content" ? " focused" : ""}`}
+                    ref={
+                      isAddFocused && focusArea === "content"
+                        ? focusRef
+                        : null
+                    }
+                    onClick={() => {
+                      setFocusArea("content");
+                      setFocusIdx(addIdx);
+                      setAddingTask(ph.id);
+                    }}
+                  >
+                    + add task
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <KeyHintBar
+        mode={mode}
+        hints={
+          confirmTaskDel
+            ? [
+                { key: "dd/y", label: "delete" },
+                { key: "n", label: "cancel" },
+              ]
+            : confirmDelete
+              ? [
+                  { key: "y", label: "confirm" },
+                  { key: "n", label: "cancel" },
+                ]
+              : showSearch
+                ? [
+                    {
+                      key: "n/N",
+                      label: `${searchMatches.length ? searchIdx + 1 : 0}/${searchMatches.length}`,
+                    },
+                    { key: "Esc", label: "close" },
+                  ]
+                : visualMode
+                  ? [
+                      { key: "j/k", label: "extend" },
+                      { key: "x", label: "toggle" },
+                      { key: "V/Esc", label: "exit" },
+                    ]
+                  : [
+                      { key: "j/k", label: "move" },
+                      { key: "h", label: "sidebar" },
+                      { key: "x", label: "toggle" },
+                      { key: "z", label: "fold" },
+                      { key: "J/K", label: "reorder" },
+                      { key: "H/L", label: "phase" },
+                      { key: "/", label: "search" },
+                      { key: "e", label: "edit" },
+                      { key: "d", label: "delete" },
+                      { key: "?", label: "help" },
+                    ]
+        }
+      />
+    </div>
+  );
+}
+
+// ──── Plain Mode App ─────────────────────────────────────────────────────────
+
+function PlainApp({
+  checklists,
+  onSave,
+  onDelete,
+  onArchive,
+  onExport,
+  onImport,
+  onToggleMode,
+  scheme,
+  onCycleScheme,
+}) {
+  const [activeId, setActiveId] = useState(checklists[0]?.id || null);
+  const [modal, setModal] = useState(null);
+  const [sidebarFocus, setSidebarFocus] = useState(0);
+  const [focusArea, setFocusArea] = useState("sidebar"); // sidebar | content
+  const fileRef = useRef(null);
+
+  const active = checklists.find((cl) => cl.id === activeId) || null;
+
+  // ── Persist changes ────────────────────────────────────────────────────────
+  const handleChange = (upd) => onSave(upd);
+  const handleDelete = () => {
+    const idx = checklists.findIndex((c) => c.id === activeId);
+    onDelete(activeId);
+    setActiveId(checklists[idx - 1]?.id || checklists[idx + 1]?.id || null);
+  };
+  const handleArchive = () => {
+    if (active) onSave({ ...active, archived: !active.archived });
+  };
+
+  // ── Sidebar keyboard nav ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (focusArea !== "sidebar") return;
+    const h = (e) => {
+      if (
+        document.activeElement.tagName === "INPUT" ||
+        document.activeElement.tagName === "TEXTAREA"
+      )
+        return;
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setSidebarFocus((i) => Math.min(i + 1, checklists.length - 1));
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setSidebarFocus((i) => Math.max(i - 1, 0));
+      } else if (e.key === "Enter" || e.key === "l" || e.key === "ArrowRight") {
+        e.preventDefault();
+        if (checklists[sidebarFocus]) {
+          setActiveId(checklists[sidebarFocus].id);
+          setFocusArea("content");
+        }
+      } else if (e.key === "n") {
+        e.preventDefault();
+        setModal("new");
+      } else if (e.key === "i") {
+        e.preventDefault();
+        fileRef.current?.click();
+      } else if (e.key === "T") {
+        e.preventDefault();
+        onCycleScheme();
+      } else if (e.key === "M") {
+        e.preventDefault();
+        onToggleMode();
+      } else if (e.key === "g") setSidebarFocus(0);
+      else if (e.key === "G") setSidebarFocus(checklists.length - 1);
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [focusArea, sidebarFocus, checklists]);
+
+  // Sync sidebarFocus with activeId
+  useEffect(() => {
+    const idx = checklists.findIndex((cl) => cl.id === activeId);
+    if (idx !== -1) setSidebarFocus(idx);
+  }, [activeId]);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const items = Array.isArray(data) ? data : [data];
+        onImport(items);
+      } catch {}
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  return (
+    <div className="plain-layout">
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".json"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
+
+      {/* Sidebar */}
+      <div className="plain-sidebar" onClick={() => setFocusArea("sidebar")}>
+        <div className="plain-sidebar-title">checklists</div>
+        {checklists.map((cl, idx) => {
+          const { done, total } = getProgress(cl);
+          return (
+            <div
+              key={cl.id}
+              className={`plain-sidebar-item${cl.id === activeId ? " active" : ""}${focusArea === "sidebar" && sidebarFocus === idx ? " focused" : ""}`}
+              onClick={() => {
+                setActiveId(cl.id);
+                setSidebarFocus(idx);
+                setFocusArea("content");
+              }}
+            >
+              <span className="si-icon">{cl.archived ? "□" : "▪"}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                {cl.title}
+              </span>
+              <span className="si-progress">
+                {done}/{total}
+              </span>
+            </div>
+          );
+        })}
+        <div className="plain-sidebar-new">
+          <button onClick={() => setModal("new")}>+ new</button>
+        </div>
+        <KeyHintBar
+          mode={focusArea === "sidebar" ? "SIDEBAR" : "--"}
+          hints={
+            focusArea === "sidebar"
+              ? [
+                  { key: "j/k", label: "nav" },
+                  { key: "l/Enter", label: "open" },
+                  { key: "n", label: "new" },
+                  { key: "M", label: "mode" },
+                  { key: "T", label: "theme" },
+                ]
+              : []
+          }
+        />
+      </div>
+
+      {/* Content */}
+      <div
+        style={{
+          flex: 1,
+          overflow: "auto",
+          display: "flex",
+          flexDirection: "column",
+        }}
+        onClick={() => setFocusArea("content")}
+      >
+        {active ? (
+          <PlainContent
+            key={active.id}
+            cl={active}
+            handleChange={handleChange}
+            handleDelete={handleDelete}
+            handleArchive={handleArchive}
+            onExport={onExport}
+            setModal={setModal}
+            focusArea={focusArea}
+            setFocusArea={setFocusArea}
+          />
+        ) : (
+          <div className="plain-home-main">
+            <div className="plain-home-hint">
+              select a checklist from the sidebar
+              <br />
+              <span style={{ opacity: 0.4 }}>
+                j/k navigate · l/Enter open · n new
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {modal && (
+        <Modal
+          initial={modal === "edit" ? active : null}
+          onSave={(data) => {
+            if (modal === "new") {
+              onSave(data, true);
+            } else {
+              onSave(data, false);
+            }
+            setModal(null);
+          }}
+          onClose={() => setModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 // ──── App Root ────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -2608,6 +3611,7 @@ export default function App() {
   }, [scheme]);
   useEffect(() => {
     document.body.classList.toggle("modern", uiMode === "modern");
+    document.body.classList.toggle("plain", uiMode === "plain");
   }, [uiMode]);
 
   useEffect(() => {
@@ -2630,7 +3634,8 @@ export default function App() {
         document.activeElement.tagName !== "TEXTAREA"
       ) {
         setUiMode((m) => {
-          const n = m === "classic" ? "modern" : "classic";
+          const n =
+            m === "classic" ? "modern" : m === "modern" ? "plain" : "classic";
           saveMode(n);
           return n;
         });
@@ -2696,8 +3701,42 @@ export default function App() {
     <>
       <style>{styles}</style>
       {uiMode === "modern" && <style>{modernStyles}</style>}
+      {uiMode === "plain" && <style>{plainStyles}</style>}
       {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
-      {view === "home" ? (
+      {uiMode === "plain" ? (
+        <PlainApp
+          checklists={checklists}
+          onSave={(data, isNew) => {
+            if (isNew) persist([...checklists, data]);
+            else
+              persist(checklists.map((cl) => (cl.id === data.id ? data : cl)));
+          }}
+          onDelete={(id) => persist(checklists.filter((cl) => cl.id !== id))}
+          onArchive={(id) =>
+            persist(
+              checklists.map((cl) =>
+                cl.id === id ? { ...cl, archived: !cl.archived } : cl,
+              ),
+            )
+          }
+          onExport={handleExport}
+          onImport={handleImport}
+          onToggleMode={() =>
+            setUiMode((m) => {
+              const n =
+                m === "classic"
+                  ? "modern"
+                  : m === "modern"
+                    ? "plain"
+                    : "classic";
+              saveMode(n);
+              return n;
+            })
+          }
+          scheme={scheme}
+          onCycleScheme={cycleScheme}
+        />
+      ) : view === "home" ? (
         <Home
           checklists={checklists}
           onSelect={handleSelect}
@@ -2708,7 +3747,12 @@ export default function App() {
           uiMode={uiMode}
           onToggleMode={() =>
             setUiMode((m) => {
-              const n = m === "classic" ? "modern" : "classic";
+              const n =
+                m === "classic"
+                  ? "modern"
+                  : m === "modern"
+                    ? "plain"
+                    : "classic";
               saveMode(n);
               return n;
             })
