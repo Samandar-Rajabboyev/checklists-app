@@ -242,9 +242,9 @@ export function Home({
           <button
             className="mode-toggle-btn"
             onClick={onToggleMode}
-            title={`Switch to ${uiMode === "classic" ? "modern" : "classic"} mode`}
+            title={`Switch to ${uiMode === "plain" ? "default" : "plain"} mode`}
           >
-            {uiMode === "classic" ? "◈" : uiMode === "modern" ? "◫" : "◇"}
+            {uiMode === "plain" ? "◇" : "◈"}
           </button>
           <div className="topbar-divider" />
           <button

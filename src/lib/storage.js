@@ -21,7 +21,7 @@ export const uid = () => Math.random().toString(36).slice(2, 10);
 
 export const loadMode = () => {
   const m = ls.get("uimode");
-  return ["classic", "modern", "plain"].includes(m) ? m : "classic";
+  return ["classic", "plain"].includes(m) ? m : "classic";
 };
 export const saveMode = (m) => ls.set("uimode", m);
 

@@ -11,7 +11,6 @@ import { api } from "./lib/api.js";
 import { useAuth } from "./hooks/useAuth.js";
 import { useGoals } from "./hooks/useGoals.js";
 import { styles } from "./styles/classic.js";
-import { modernStyles } from "./styles/modern.js";
 import { plainStyles } from "./styles/plain.js";
 import { HelpOverlay } from "./components/HelpOverlay.jsx";
 import { Modal } from "./components/Modal.jsx";
@@ -99,7 +98,6 @@ function AuthedApp() {
     applyScheme(scheme);
   }, [scheme]);
   useEffect(() => {
-    document.body.classList.toggle("modern", uiMode === "modern");
     document.body.classList.toggle("plain", uiMode === "plain");
   }, [uiMode]);
 
@@ -123,8 +121,7 @@ function AuthedApp() {
         document.activeElement.tagName !== "TEXTAREA"
       ) {
         setUiMode((m) => {
-          const n =
-            m === "classic" ? "modern" : m === "modern" ? "plain" : "classic";
+          const n = m === "plain" ? "classic" : "plain";
           saveMode(n);
           return n;
         });
@@ -183,7 +180,6 @@ function AuthedApp() {
 
   return (
     <>
-      {uiMode === "modern" && <style>{modernStyles}</style>}
       {uiMode === "plain" && <style>{plainStyles}</style>}
       {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
       {importPrompt && (
@@ -223,12 +219,7 @@ function AuthedApp() {
           selectChecklist={selectChecklist}
           onToggleMode={() =>
             setUiMode((m) => {
-              const n =
-                m === "classic"
-                  ? "modern"
-                  : m === "modern"
-                    ? "plain"
-                    : "classic";
+              const n = m === "plain" ? "classic" : "plain";
               saveMode(n);
               return n;
             })
@@ -247,12 +238,7 @@ function AuthedApp() {
           uiMode={uiMode}
           onToggleMode={() =>
             setUiMode((m) => {
-              const n =
-                m === "classic"
-                  ? "modern"
-                  : m === "modern"
-                    ? "plain"
-                    : "classic";
+              const n = m === "plain" ? "classic" : "plain";
               saveMode(n);
               return n;
             })
