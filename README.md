@@ -39,11 +39,9 @@ npm run deploy
 ```
 
 OAuth client IDs live in `wrangler.toml` under `[vars]`; the matching
-secrets (`GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`) and the session
-cookie signing secret (`SESSION_SECRET`) are set via:
+secrets are set via:
 
 ```bash
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put GITHUB_CLIENT_SECRET
-npx wrangler secret put SESSION_SECRET
 ```

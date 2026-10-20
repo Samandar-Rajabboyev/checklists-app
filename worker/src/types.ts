@@ -5,7 +5,6 @@ export interface Env {
   GOOGLE_CLIENT_SECRET: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
-  SESSION_SECRET: string;
   PUBLIC_URL: string;
 }
 
