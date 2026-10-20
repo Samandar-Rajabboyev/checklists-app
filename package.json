@@ -1,19 +1,27 @@
 {
-  "name": "checklists-app",
+  "name": "todo",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "worker:dev": "wrangler dev",
+    "deploy": "vite build && wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply todo-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply todo-db --remote"
   },
   "dependencies": {
+    "hono": "^4.13.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5",
     "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.21"
+    "typescript": "^5.7.0",
+    "vite": "^5.4.21",
+    "wrangler": "^4.151.3"
   }
 }
