@@ -1,0 +1,60 @@
+import { SCHEMES } from "../constants.js";
+
+// ──── localStorage wrapper ──────────────────────────────────────────────────
+
+export const ls = {
+  get: (k) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k, v) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch {}
+  },
+};
+
+export const uid = () => Math.random().toString(36).slice(2, 10);
+
+export const loadMode = () => {
+  const m = ls.get("uimode");
+  return ["classic", "modern", "plain"].includes(m) ? m : "classic";
+};
+export const saveMode = (m) => ls.set("uimode", m);
+
+export const loadData = () => {
+  try {
+    const r = ls.get("checklists-v2");
+    if (r) return JSON.parse(r);
+    const v1 = ls.get("checklists-v1");
+    if (v1) return JSON.parse(v1);
+  } catch {}
+  return [];
+};
+export const saveData = (d) => ls.set("checklists-v2", JSON.stringify(d));
+
+export const loadView = () => {
+  const v = ls.get("view");
+  return ["grid", "list", "compact"].includes(v) ? v : "grid";
+};
+export const saveView = (v) => ls.set("view", v);
+
+export const loadScheme = () => {
+  const id = ls.get("scheme");
+  return SCHEMES.find((s) => s.id === id) || SCHEMES[0];
+};
+export const saveScheme = (s) => ls.set("scheme", s.id);
+
+export const getProgress = (cl) => {
+  let done = 0,
+    total = 0;
+  for (const ph of cl.phases)
+    for (const t of ph.tasks) {
+      total++;
+      if (t.done) done++;
+    }
+  return { done, total };
+};
