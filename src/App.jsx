@@ -49,6 +49,7 @@ function AuthedApp() {
     archiveChecklist,
     importChecklists,
     selectChecklist,
+    replaceOne,
   } = useGoals();
   const [view, setView] = useState("home");
   const [activeId, setActiveId] = useState(null);
@@ -169,6 +170,14 @@ function AuthedApp() {
     a.click();
   };
   const handleImport = (items) => importChecklists(items);
+  const handleAddCheckin = async (goalId, note) => {
+    const saved = await api.addCheckin(goalId, note);
+    replaceOne(saved);
+  };
+  const handleDeleteCheckin = async (goalId, checkinId) => {
+    const saved = await api.deleteCheckin(goalId, checkinId);
+    replaceOne(saved);
+  };
 
   const active = checklists.find((cl) => cl.id === activeId);
 
@@ -260,6 +269,8 @@ function AuthedApp() {
           onExport={handleExport}
           modalOpen={!!modal}
           uiMode={uiMode}
+          onAddCheckin={handleAddCheckin}
+          onDeleteCheckin={handleDeleteCheckin}
         />
       ) : null}
       {modal && (

@@ -2,6 +2,18 @@ import { useState, useRef, useEffect } from "react";
 import { uid, getProgress } from "../lib/storage.js";
 import { Confetti } from "./Confetti.jsx";
 import { KeyHintBar } from "./KeyHintBar.jsx";
+import { Checkins } from "./Checkins.jsx";
+
+const PRIORITIES = [
+  { id: "none", label: "—", color: "var(--text-muted)" },
+  { id: "low", label: "L", color: "#2AA65A" },
+  { id: "medium", label: "M", color: "#D4A22A" },
+  { id: "high", label: "H", color: "#D4522A" },
+];
+const nextPriority = (p) => {
+  const i = PRIORITIES.findIndex((x) => x.id === (p || "none"));
+  return PRIORITIES[(i + 1) % PRIORITIES.length].id;
+};
 
 // ──── Detail ──────────────────────────────────────────────────────────────────
 
@@ -14,6 +26,8 @@ export function Detail({
   onArchive,
   onExport,
   modalOpen,
+  onAddCheckin,
+  onDeleteCheckin,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmTaskDelete, setConfirmTaskDelete] = useState(false);
@@ -148,6 +162,34 @@ export function Detail({
         n.delete(phaseId);
         return n;
       });
+  };
+
+  const cycleTaskPriority = (phaseId, taskId) => {
+    const newPhases = checklist.phases.map((ph) =>
+      ph.id !== phaseId
+        ? ph
+        : {
+            ...ph,
+            tasks: ph.tasks.map((t) =>
+              t.id !== taskId ? t : { ...t, priority: nextPriority(t.priority) },
+            ),
+          },
+    );
+    onChange({ ...checklist, phases: newPhases });
+  };
+
+  const setTaskDueDate = (phaseId, taskId, value) => {
+    const newPhases = checklist.phases.map((ph) =>
+      ph.id !== phaseId
+        ? ph
+        : {
+            ...ph,
+            tasks: ph.tasks.map((t) =>
+              t.id !== taskId ? t : { ...t, due_date: value || null },
+            ),
+          },
+    );
+    onChange({ ...checklist, phases: newPhases });
   };
 
   const togglePhase = (phaseId) => {
@@ -976,6 +1018,57 @@ export function Detail({
                               <span className="tag">{task.tag}</span>
                             )}
                           </div>
+                          <div
+                            className="task-quick-edit"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {(() => {
+                              const pr =
+                                PRIORITIES.find(
+                                  (p) => p.id === (task.priority || "none"),
+                                ) || PRIORITIES[0];
+                              return (
+                                <button
+                                  type="button"
+                                  className="priority-dot-sm"
+                                  title={`Priority: ${pr.id} (click to cycle)`}
+                                  style={{ color: pr.color, borderColor: pr.color }}
+                                  onClick={() => cycleTaskPriority(ph.id, task.id)}
+                                >
+                                  {pr.label}
+                                </button>
+                              );
+                            })()}
+                            <label
+                              className={`task-due-badge${task.due_date ? " set" : ""}`}
+                              title="Due date"
+                            >
+                              {task.due_date || "+ due"}
+                              <input
+                                type="date"
+                                value={task.due_date || ""}
+                                onChange={(e) => {
+                                  setTaskDueDate(ph.id, task.id, e.target.value);
+                                  e.target.blur();
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Escape" || e.key === "Enter")
+                                    e.target.blur();
+                                }}
+                                onClick={(e) => {
+                                  // Native date inputs grab and keep keyboard
+                                  // focus on click (even just to open/close the
+                                  // picker, with no change/blur event firing).
+                                  // Detail's global j/k/x/V/search handler
+                                  // treats any focused INPUT as "typing" and
+                                  // silently swallows all subsequent keystrokes,
+                                  // so hand focus back once the click settles.
+                                  const el = e.target;
+                                  setTimeout(() => el.blur(), 0);
+                                }}
+                              />
+                            </label>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1038,6 +1131,15 @@ export function Detail({
           ~{checklist.total_days} days · {checklist.title.toUpperCase()}
         </div>
       )}
+
+      {(onAddCheckin || checklist.checkins?.length > 0) && (
+        <Checkins
+          checkins={checklist.checkins || []}
+          onAdd={(note) => onAddCheckin?.(checklist.id, note)}
+          onDelete={(checkinId) => onDeleteCheckin?.(checklist.id, checkinId)}
+        />
+      )}
+
       <KeyHintBar hints={hints} mode={mode} />
     </div>
   );

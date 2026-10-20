@@ -3,6 +3,29 @@ import { SCHEMES } from "../constants.js";
 import { uid, loadView, saveView, getProgress } from "../lib/storage.js";
 import { KeyHintBar } from "./KeyHintBar.jsx";
 
+const CATEGORY_LABEL = {
+  software: "SOFTWARE",
+  study: "STUDY",
+  business: "BUSINESS",
+  personal: "PERSONAL",
+  custom: null, // default category isn't worth a badge
+};
+
+function CategoryBadge({ category }) {
+  const label = CATEGORY_LABEL[category];
+  if (!label) return null;
+  return <span className="card-category-badge">{label}</span>;
+}
+
+function StatusBadge({ status }) {
+  if (!status || status === "active" || status === "archived") return null;
+  return (
+    <span className={`card-status-badge card-status-${status}`}>
+      {status.toUpperCase()}
+    </span>
+  );
+}
+
 // ──── Home ────────────────────────────────────────────────────────────────────
 
 export function Home({
@@ -290,6 +313,8 @@ export function Home({
                 {cl.total_days && (
                   <span className="card-duration">~{cl.total_days} days</span>
                 )}
+                <CategoryBadge category={cl.category} />
+                <StatusBadge status={cl.status} />
                 {cl.archived && (
                   <span className="card-archived-badge">ARCHIVED</span>
                 )}
@@ -314,7 +339,11 @@ export function Home({
               >
                 <span className="list-card-emoji">{cl.emoji}</span>
                 <div className="list-card-body">
-                  <div className="list-card-title serif">{cl.title}</div>
+                  <div className="list-card-title serif">
+                    {cl.title}
+                    <CategoryBadge category={cl.category} />
+                    <StatusBadge status={cl.status} />
+                  </div>
                   {cl.description && (
                     <div className="list-card-desc">{cl.description}</div>
                   )}

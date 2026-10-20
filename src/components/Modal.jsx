@@ -2,6 +2,128 @@ import { useState, useRef, useEffect } from "react";
 import { ACCENT_COLORS } from "../constants.js";
 import { uid } from "../lib/storage.js";
 
+// ──── Category templates ────────────────────────────────────────────────────
+// Starter phases/tasks offered when creating a NEW goal, keyed by category.
+// Picking one just seeds the `phases` state below — fully editable after.
+
+const TEMPLATES = {
+  software: {
+    label: "Software Project",
+    emoji: "💻",
+    phases: [
+      {
+        label: "Phase 0",
+        title: "Planning",
+        duration: "",
+        tasks: ["Define scope & requirements", "Pick stack & tooling", "Set up repo & CI"],
+      },
+      {
+        label: "Phase 1",
+        title: "Build",
+        duration: "",
+        tasks: ["Implement core features", "Write tests", "Code review pass"],
+      },
+      {
+        label: "Phase 2",
+        title: "Launch",
+        duration: "",
+        tasks: ["Deploy to production", "Write docs / README", "Announce & gather feedback"],
+      },
+    ],
+  },
+  study: {
+    label: "Study Plan",
+    emoji: "📚",
+    phases: [
+      {
+        label: "Phase 0",
+        title: "Foundations",
+        duration: "",
+        tasks: ["Gather materials / syllabus", "Skim overview & build a roadmap"],
+      },
+      {
+        label: "Phase 1",
+        title: "Core Learning",
+        duration: "",
+        tasks: ["Work through main material", "Take notes & summarize each unit", "Do practice exercises"],
+      },
+      {
+        label: "Phase 2",
+        title: "Review & Assess",
+        duration: "",
+        tasks: ["Take a practice test", "Review weak areas", "Final review session"],
+      },
+    ],
+  },
+  business: {
+    label: "Business Plan",
+    emoji: "📈",
+    phases: [
+      {
+        label: "Phase 0",
+        title: "Validate",
+        duration: "",
+        tasks: ["Define target customer", "Talk to potential customers", "Validate pricing"],
+      },
+      {
+        label: "Phase 1",
+        title: "Build",
+        duration: "",
+        tasks: ["Build MVP / offer", "Set up basic operations", "Prepare launch assets"],
+      },
+      {
+        label: "Phase 2",
+        title: "Grow",
+        duration: "",
+        tasks: ["Launch to first customers", "Set up tracking / metrics", "Iterate on feedback"],
+      },
+    ],
+  },
+  blank: {
+    label: "Blank",
+    emoji: "📋",
+    phases: [{ label: "Phase 0", title: "", duration: "", tasks: [""] }],
+  },
+};
+
+function buildPhasesFromTemplate(key) {
+  const tpl = TEMPLATES[key];
+  if (!tpl) return null;
+  return tpl.phases.map((ph) => ({
+    id: uid(),
+    label: ph.label,
+    title: ph.title,
+    duration: ph.duration,
+    tasks: ph.tasks.map((text) => ({
+      id: uid(),
+      text,
+      tag: "",
+      done: false,
+      priority: "none",
+      due_date: "",
+    })),
+  }));
+}
+
+const CATEGORIES = [
+  { id: "software", label: "Software" },
+  { id: "study", label: "Study" },
+  { id: "business", label: "Business" },
+  { id: "personal", label: "Personal" },
+  { id: "custom", label: "Custom" },
+];
+
+const PRIORITIES = [
+  { id: "none", label: "—", color: "var(--text-muted)" },
+  { id: "low", label: "L", color: "#2AA65A" },
+  { id: "medium", label: "M", color: "#D4A22A" },
+  { id: "high", label: "H", color: "#D4522A" },
+];
+const nextPriority = (p) => {
+  const i = PRIORITIES.findIndex((x) => x.id === (p || "none"));
+  return PRIORITIES[(i + 1) % PRIORITIES.length].id;
+};
+
 // ──── Modal ───────────────────────────────────────────────────────────────────
 
 export function Modal({ initial, onSave, onClose }) {
@@ -9,9 +131,12 @@ export function Modal({ initial, onSave, onClose }) {
   const [title, setTitle] = useState(initial?.title || "");
   const [desc, setDesc] = useState(initial?.description || "");
   const [color, setColor] = useState(initial?.color || "#D4522A");
+  const [category, setCategory] = useState(initial?.category || "custom");
   const [duration, setDuration] = useState(
     initial?.total_days ? `~${initial.total_days} days` : "",
   );
+  // Only offer the blank-page template picker for brand-new goals.
+  const [templatePicked, setTemplatePicked] = useState(!!initial);
   const [phases, setPhases] = useState(
     initial?.phases?.map((p) => ({
       id: p.id,
@@ -23,6 +148,8 @@ export function Modal({ initial, onSave, onClose }) {
         text: t.text,
         tag: t.tag || "",
         done: t.done,
+        priority: t.priority || "none",
+        due_date: t.due_date || "",
       })),
     })) || [
       {
@@ -30,11 +157,27 @@ export function Modal({ initial, onSave, onClose }) {
         label: "Phase 0",
         title: "",
         duration: "",
-        tasks: [{ id: uid(), text: "", tag: "", done: false }],
+        tasks: [{ id: uid(), text: "", tag: "", done: false, priority: "none", due_date: "" }],
       },
     ],
   );
   const lastPhaseId = useRef(phases[phases.length - 1]?.id);
+
+  const pickTemplate = (key) => {
+    const built = buildPhasesFromTemplate(key);
+    if (built) {
+      setPhases(built);
+      lastPhaseId.current = built[built.length - 1]?.id;
+    }
+    if (key !== "blank" && TEMPLATES[key]) {
+      setCategory(key);
+      if (!emoji || emoji === "📋") setEmoji(TEMPLATES[key].emoji);
+    }
+    setTemplatePicked(true);
+    setTimeout(() => {
+      document.querySelector(".modal-title-input")?.focus();
+    }, 30);
+  };
 
   const addPhase = () => {
     const np = {
@@ -42,7 +185,7 @@ export function Modal({ initial, onSave, onClose }) {
       label: `Phase ${phases.length}`,
       title: "",
       duration: "",
-      tasks: [{ id: uid(), text: "", tag: "", done: false }],
+      tasks: [{ id: uid(), text: "", tag: "", done: false, priority: "none", due_date: "" }],
     };
     setPhases((p) => [...p, np]);
     lastPhaseId.current = np.id;
@@ -59,7 +202,7 @@ export function Modal({ initial, onSave, onClose }) {
       label: `Phase ${phases.length}`,
       title: "",
       duration: "",
-      tasks: [{ id: uid(), text: "", tag: "", done: false }],
+      tasks: [{ id: uid(), text: "", tag: "", done: false, priority: "none", due_date: "" }],
     };
     setPhases((p) => {
       const i = p.findIndex((ph) => ph.id === pid);
@@ -90,7 +233,7 @@ export function Modal({ initial, onSave, onClose }) {
               ...ph,
               tasks: [
                 ...ph.tasks,
-                { id: uid(), text: "", tag: "", done: false },
+                { id: uid(), text: "", tag: "", done: false, priority: "none", due_date: "" },
               ],
             }
           : ph,
@@ -125,6 +268,32 @@ export function Modal({ initial, onSave, onClose }) {
           : ph,
       ),
     );
+  const updateTaskField = (pid, tid, field, v) =>
+    setPhases((p) =>
+      p.map((ph) =>
+        ph.id === pid
+          ? {
+              ...ph,
+              tasks: ph.tasks.map((t) =>
+                t.id === tid ? { ...t, [field]: v } : t,
+              ),
+            }
+          : ph,
+      ),
+    );
+  const cycleTaskPriority = (pid, tid) =>
+    setPhases((p) =>
+      p.map((ph) =>
+        ph.id === pid
+          ? {
+              ...ph,
+              tasks: ph.tasks.map((t) =>
+                t.id === tid ? { ...t, priority: nextPriority(t.priority) } : t,
+              ),
+            }
+          : ph,
+      ),
+    );
 
   const handleSave = () => {
     if (!title.trim()) return;
@@ -134,6 +303,7 @@ export function Modal({ initial, onSave, onClose }) {
       title: title.trim(),
       description: desc.trim(),
       color,
+      category,
       total_days: parseInt(duration) || null,
       created_at: initial?.created_at || new Date().toISOString().slice(0, 10),
       phases: phases
@@ -149,6 +319,8 @@ export function Modal({ initial, onSave, onClose }) {
               text: t.text,
               done: t.done,
               ...(t.tag ? { tag: t.tag } : {}),
+              priority: t.priority || "none",
+              due_date: t.due_date || null,
             })),
         }))
         .filter((ph) => ph.title || ph.tasks.length),
@@ -209,6 +381,7 @@ export function Modal({ initial, onSave, onClose }) {
             <label>Title</label>
             <input
               autoFocus
+              className="modal-title-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="My Checklist"
@@ -253,6 +426,39 @@ export function Modal({ initial, onSave, onClose }) {
             </div>
           </div>
         </div>
+        <div className="field">
+          <label>Category</label>
+          <div className="category-picker">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={`category-btn${category === c.id ? " selected" : ""}`}
+                onClick={() => setCategory(c.id)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {!templatePicked && (
+          <div className="field">
+            <label>Quick Start</label>
+            <div className="template-picker">
+              {Object.entries(TEMPLATES).map(([key, tpl]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className="template-btn"
+                  onClick={() => pickTemplate(key)}
+                >
+                  <span className="template-btn-emoji">{tpl.emoji}</span>
+                  {tpl.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="modal-phases">
           <div
             style={{
@@ -318,34 +524,57 @@ export function Modal({ initial, onSave, onClose }) {
                 </div>
               </div>
               <div className="phase-tasks">
-                {ph.tasks.map((t) => (
-                  <div className="phase-task-row" key={t.id}>
-                    <input
-                      value={t.text}
-                      onChange={(e) => updateTask(ph.id, t.id, e.target.value)}
-                      placeholder="Task description"
-                      onFocus={() => {
-                        lastPhaseId.current = ph.id;
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addTask(ph.id);
+                {ph.tasks.map((t) => {
+                  const pr =
+                    PRIORITIES.find((p) => p.id === (t.priority || "none")) ||
+                    PRIORITIES[0];
+                  return (
+                    <div className="phase-task-row" key={t.id}>
+                      <button
+                        type="button"
+                        className="priority-dot"
+                        title={`Priority: ${pr.id} (click to cycle)`}
+                        style={{ color: pr.color, borderColor: pr.color }}
+                        onClick={() => cycleTaskPriority(ph.id, t.id)}
+                      >
+                        {pr.label}
+                      </button>
+                      <input
+                        value={t.text}
+                        onChange={(e) => updateTask(ph.id, t.id, e.target.value)}
+                        placeholder="Task description"
+                        onFocus={() => {
+                          lastPhaseId.current = ph.id;
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addTask(ph.id);
+                          }
+                          if (e.key === "Backspace" && t.text === "") {
+                            e.preventDefault();
+                            removeTask(ph.id, t.id);
+                          }
+                        }}
+                      />
+                      <input
+                        type="date"
+                        className="task-due-input"
+                        value={t.due_date || ""}
+                        title="Due date"
+                        onChange={(e) =>
+                          updateTaskField(ph.id, t.id, "due_date", e.target.value)
                         }
-                        if (e.key === "Backspace" && t.text === "") {
-                          e.preventDefault();
-                          removeTask(ph.id, t.id);
-                        }
-                      }}
-                    />
-                    <button
-                      className="remove-btn"
-                      onClick={() => removeTask(ph.id, t.id)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                      />
+                      <button
+                        className="remove-btn"
+                        onClick={() => removeTask(ph.id, t.id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
                 <button className="small-link" onClick={() => addTask(ph.id)}>
                   + add task
                 </button>
