@@ -7,6 +7,10 @@ directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
+[[routes]]
+pattern = "todo.samandar.dev"
+custom_domain = true
+
 [[d1_databases]]
 binding = "DB"
 database_name = "todo-db"
