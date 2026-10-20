@@ -6,6 +6,8 @@ export const styles = `
   body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; padding-bottom: 24px; }
   .serif { font-family: 'Fraunces', serif; font-weight: 600; }
   .app { max-width: 960px; margin: 0 auto; padding: 0 24px 60px; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { overflow-x: hidden; }
 
   /* Topbar */
   .topbar { position:sticky; top:0; z-index:40; display:flex; align-items:center; justify-content:space-between; height:48px; padding:0 24px; background:var(--bg-card); border-bottom:1px solid var(--border); margin:0 -24px 28px; gap:0; }
@@ -26,6 +28,28 @@ export const styles = `
   .topbar-import-btn:hover { color:var(--text); }
   .topbar-new-btn { background:var(--border-strong); color:var(--bg); border:none; font-family:'DM Mono',monospace; font-size:0.68rem; cursor:pointer; padding:6px 13px; letter-spacing:0.04em; white-space:nowrap; }
   .topbar-new-btn:hover { opacity:0.82; }
+
+  /* Topbar — narrow screens: wrap into two rows instead of overflowing.
+     Row 1: brand + new button. Row 2: nav tabs (scrollable) + the rest
+     of the actions (also scrollable), so nothing is ever clipped
+     off-screen with no way to reach it. */
+  @media (max-width:760px) {
+    .topbar { flex-wrap:wrap; height:auto; min-height:48px; padding:8px 16px; row-gap:8px; margin:0 -16px 20px; }
+    .topbar-brand { margin-right:auto; }
+    .topbar-nav { order:3; flex:1 1 100%; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+    .topbar-nav::-webkit-scrollbar { display:none; }
+    .topbar-nav-btn { padding:6px 12px; flex-shrink:0; }
+    .topbar-actions { margin-left:0; flex-wrap:wrap; flex-shrink:1; max-width:100%; justify-content:flex-end; row-gap:8px; }
+    .topbar-new-btn { padding:8px 14px; }
+  }
+  @media (max-width:480px) {
+    .app { padding:0 14px 60px; }
+    .topbar { padding:8px 12px; margin:0 -14px 18px; }
+    .topbar-title { font-size:0.92rem; }
+    .topbar-actions { gap:5px; }
+    .topbar-import-btn { padding:5px 6px; }
+    .topbar-divider { margin:0 2px; }
+  }
 
   /* Buttons */
   .btn { border:none; font-family:'DM Mono',monospace; font-size:0.72rem; cursor:pointer; padding:7px 13px; letter-spacing:0.04em; }
@@ -172,6 +196,42 @@ export const styles = `
   .detail-search-close { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1rem; padding:0; line-height:1; flex-shrink:0; }
   .detail-search-close:hover { color:var(--text); }
 
+  /* Detail header, task rows & touch targets — narrow screens */
+  @media (max-width:760px) {
+    .detail-header { padding:20px 0 16px; }
+    .detail-header-top { flex-direction:column; gap:12px; align-items:stretch; }
+    .detail-title-row h1 { font-size:1.4rem !important; }
+    .detail-actions { gap:14px; }
+    .task-row-main { flex-wrap:wrap; row-gap:8px; }
+    .task-quick-edit { margin-left:0; flex-basis:100%; padding-left:26px; }
+    .detail-search { top:10px; width:92vw; padding:8px 10px; }
+  }
+  @media (max-width:480px) {
+    .detail-header-top h1 { font-size:1.25rem !important; }
+    .detail-actions { gap:12px; row-gap:8px; }
+  }
+
+  /* Touch target sizing — comfortable tap areas on touch-capable screens,
+     without inflating the dense desktop/keyboard-driven layout. Applied
+     under the same width breakpoint as the rest of the mobile overrides
+     rather than via a hover/pointer media feature, since tablets with a
+     mouse should still get the same breakpoint-driven layout changes. */
+  @media (max-width:760px) {
+    .checkbox { width:28px; height:28px; font-size:15px; }
+    .priority-dot-sm { width:28px; height:28px; font-size:0.7rem; }
+    .task-due-badge { padding:8px 10px; font-size:0.68rem; }
+    .remove-btn { padding:9px; font-size:1rem; }
+    .checkin-del { padding:8px; font-size:1rem; }
+    .back-btn { font-size:1.3rem; padding:8px; margin:-8px; }
+    .detail-search-close { padding:8px; font-size:1.3rem; margin:-8px; }
+    .search-clear { padding:8px; font-size:1.3rem; }
+    .topbar-view-btn { padding:8px 10px; font-size:1rem; }
+    .scheme-dot { width:20px; height:20px; }
+    .mode-toggle-btn { padding:8px 12px; }
+    .add-task-link { padding:13px; }
+    .phase-label { padding:10px 11px; }
+  }
+
   /* Modal */
   .modal-overlay { position:fixed; inset:0; background:var(--overlay-bg); display:flex; align-items:center; justify-content:center; z-index:100; padding:24px; }
   .modal { background:var(--bg); border:1.5px solid var(--border-strong); width:100%; max-width:600px; max-height:85vh; overflow-y:auto; padding:26px 24px; }
@@ -219,6 +279,32 @@ export const styles = `
   .btn-save:hover { opacity:0.85; }
   .btn-cancel { background:none; border:1px solid var(--border); color:var(--text-muted); padding:7px 15px; font-family:'DM Mono',monospace; font-size:0.7rem; cursor:pointer; }
   .btn-cancel:hover { border-color:var(--text-muted); color:var(--text); }
+
+  /* Modal — narrow screens */
+  @media (max-width:600px) {
+    .modal-overlay { padding:0; align-items:flex-end; }
+    .modal { max-width:100%; max-height:92vh; padding:20px 16px 18px; }
+    .modal-title { font-size:1.15rem; }
+  }
+  @media (max-width:480px) {
+    /* Emoji/Title and Duration/Color 2-col grids (inline styles in Modal.jsx)
+       are fine to leave side-by-side down to ~360px — only the dense
+       4-column phase header needs to collapse. */
+    .modal-phase-header { grid-template-columns:1fr 1fr; grid-template-areas:"label title" "duration actions"; }
+    .modal-phase-header input:nth-child(1) { grid-area:label; }
+    .modal-phase-header input:nth-child(2) { grid-area:title; }
+    .modal-phase-header input:nth-child(3) { grid-area:duration; }
+    .modal-phase-header div { grid-area:actions; justify-self:end; }
+    .phase-task-row { flex-wrap:wrap; }
+    .phase-task-row input[placeholder="Task description"] { flex:1 1 100%; order:1; }
+    .task-due-input { order:2; width:auto; flex:1 !important; }
+    .priority-dot { order:0; }
+    .remove-btn { order:3; }
+  }
+  @media (max-width:760px) {
+    .priority-dot, .remove-btn { width:26px; height:26px; }
+    .task-due-input, .phase-task-row input, .modal-phase-header input { padding:7px 8px; font-size:0.74rem; }
+  }
 
   /* Statusbar (keyhint bar) */
   .keyhint-bar { position:fixed; bottom:0; left:0; right:0; height:24px; background:var(--accent); color:var(--bg); font-family:'DM Mono',monospace; font-size:0.59rem; padding:0; display:flex; align-items:stretch; letter-spacing:0.03em; z-index:50; overflow:hidden; white-space:nowrap; }

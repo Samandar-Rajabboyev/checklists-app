@@ -128,8 +128,21 @@ export function PlainApp({
         onChange={handleFileChange}
       />
 
-      {/* Sidebar */}
-      <div className="plain-sidebar" onClick={() => setFocusArea("sidebar")}>
+      {/* Sidebar — becomes an off-canvas drawer on narrow screens, shown
+          when focusArea is "sidebar" (the same state that already drives
+          keyboard routing between sidebar/content). A tap on the backdrop
+          or a sidebar item switches focusArea to "content", which doubles
+          as "close the drawer" on mobile. */}
+      {focusArea === "sidebar" && (
+        <div
+          className="plain-sidebar-backdrop"
+          onClick={() => setFocusArea("content")}
+        />
+      )}
+      <div
+        className={`plain-sidebar${focusArea === "sidebar" ? " plain-sidebar-open" : ""}`}
+        onClick={() => setFocusArea("sidebar")}
+      >
         <div className="plain-sidebar-title">
           checklists
           <span style={{ opacity: 0.4, fontSize: "0.65rem", marginLeft: "4px" }}>
@@ -142,7 +155,12 @@ export function PlainApp({
             <div
               key={cl.id}
               className={`plain-sidebar-item${cl.id === activeId ? " active" : ""}${focusArea === "sidebar" && sidebarFocus === idx ? " focused" : ""}`}
-              onClick={() => {
+              onClick={(e) => {
+                // Stop propagation so this doesn't also trigger the
+                // parent sidebar's onClick (which sets focusArea back to
+                // "sidebar" — harmless on desktop, but on mobile that's
+                // what keeps the drawer open/visibility in sync).
+                e.stopPropagation();
                 setActiveId(cl.id);
                 setSidebarFocus(idx);
                 setFocusArea("content");
@@ -177,6 +195,19 @@ export function PlainApp({
           }
         />
       </div>
+
+      {/* Mobile-only: reopen the sidebar drawer without a keyboard.
+          Hidden on wider screens via CSS (plain.js); on desktop the
+          sidebar is always visible so this button would be redundant. */}
+      <button
+        type="button"
+        className="plain-sidebar-toggle"
+        onClick={() => setFocusArea("sidebar")}
+        aria-label="Show checklist list"
+        title="Show checklist list"
+      >
+        ☰
+      </button>
 
       {/* Content */}
       <div

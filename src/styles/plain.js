@@ -86,6 +86,74 @@ export const plainStyles = `
   body.plain .keyhint-mode { font-family: inherit; }
   body.plain .keyhint-bar kbd { font-family: inherit; }
 
+  /* Mobile-only sidebar toggle — hidden by default; shown only under the
+     narrow-screen breakpoint below where the sidebar becomes a drawer. */
+  body.plain .plain-sidebar-toggle { display: none; }
+  body.plain .plain-sidebar-backdrop { display: none; }
+
+  /* Sidebar as an off-canvas drawer on phones/narrow tablets. The 200px
+     fixed sidebar would otherwise eat over half of a 375px viewport, so
+     below 700px it's hidden off-screen by default and slides in as an
+     overlay when focusArea === "sidebar" (PlainApp.jsx already tracks
+     this for keyboard routing — reused here via the plain-sidebar-open
+     class rather than adding new state). A tap on the backdrop or a
+     sidebar item returns focusArea to "content", closing the drawer. */
+  @media (max-width: 700px) {
+    body.plain .plain-sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 82vw;
+      max-width: 300px;
+      z-index: 70;
+      background: var(--bg);
+      box-shadow: 2px 0 16px rgba(0,0,0,0.3);
+      transform: translateX(-100%);
+      transition: transform 0.18s ease;
+      padding-top: 16px;
+    }
+    body.plain .plain-sidebar.plain-sidebar-open { transform: translateX(0); }
+    body.plain .plain-sidebar-item { padding: 10px 16px; font-size: 0.84rem; }
+    body.plain .plain-sidebar-new { padding: 12px 16px 0; }
+    body.plain .plain-sidebar-new button { padding: 6px 0; font-size: 0.8rem; }
+
+    body.plain .plain-sidebar-backdrop {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 65;
+    }
+
+    body.plain .plain-sidebar-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 55;
+      width: 38px;
+      height: 38px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 1.1rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    body.plain .plain-sidebar-toggle:hover { color: var(--accent); border-color: var(--text-muted); }
+
+    body.plain .plain-main { padding: 56px 16px 80px; }
+    body.plain .plain-header-meta { flex-wrap: wrap; gap: 8px; row-gap: 4px; }
+    body.plain .plain-header-actions { flex-wrap: wrap; row-gap: 8px; }
+    body.plain .plain-tasks { padding-left: 10px; }
+    body.plain .plain-task { padding: 6px 0; }
+    body.plain .plain-task-check { font-size: 0.9rem; }
+    body.plain .plain-add-task input { width: 100%; max-width: 220px; }
+  }
+
   /* Search overlay */
   body.plain .detail-search { border-radius: 0; font-family: inherit; border: 1px solid var(--border); box-shadow: none; }
   body.plain .detail-search input { font-family: inherit; font-size: 0.78rem; }
