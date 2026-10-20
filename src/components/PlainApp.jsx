@@ -16,8 +16,16 @@ export function PlainApp({
   onToggleMode,
   scheme,
   onCycleScheme,
+  selectChecklist,
 }) {
   const [activeId, setActiveId] = useState(checklists[0]?.id || null);
+
+  // The sidebar list is summary-only (no phases/tasks — see
+  // normalizeGoal in lib/api.js); fetch the full tree whenever the
+  // selected goal changes, same as Detail's handleSelect in App.jsx.
+  useEffect(() => {
+    if (activeId) selectChecklist(activeId);
+  }, [activeId, selectChecklist]);
   const [modal, setModal] = useState(null);
   const [sidebarFocus, setSidebarFocus] = useState(0);
   const [focusArea, setFocusArea] = useState("sidebar"); // sidebar | content
@@ -180,7 +188,7 @@ export function PlainApp({
         }}
         onClick={() => setFocusArea("content")}
       >
-        {active ? (
+        {active?.phases ? (
           <PlainContent
             key={active.id}
             cl={active}

@@ -211,4 +211,12 @@ export const styles = `
   .empty kbd { background:var(--border); padding:1px 5px; font-family:'DM Mono',monospace; }
   .checklist-footer { text-align:center; color:var(--text-muted); font-size:0.66rem; margin-top:36px; border-top:1px solid var(--border); padding-top:13px; }
   .err-msg { font-size:0.66rem; color:var(--accent); }
+
+  /* Login */
+  .login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-box { max-width:340px; width:100%; text-align:center; }
+  .login-logo { font-size:2rem; color:var(--accent); margin-bottom:14px; }
+  .login-tagline { color:var(--text-muted); font-size:0.78rem; line-height:1.6; margin-bottom:28px; }
+  .login-btn { display:block; width:100%; text-align:center; text-decoration:none; margin-bottom:10px; box-sizing:border-box; }
+  .login-loading { min-height:100vh; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:0.78rem; }
 `;

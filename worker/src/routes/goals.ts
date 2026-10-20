@@ -62,12 +62,33 @@ async function loadGoalFull(db: D1Database, goalId: string, userId: string) {
 // List goals (summary only — no nested phases/tasks) for the dashboard/home view.
 goals.get("/", async (c) => {
   const user = c.get("user");
+  // Task counts are joined in rather than returning full nested phases/tasks
+  // per goal — the home/dashboard list only needs aggregate progress, and
+  // the detail view fetches the full tree separately via GET /goals/:id.
   const rows = await c.env.DB.prepare(
-    "SELECT * FROM goals WHERE user_id = ? ORDER BY sort_order ASC, created_at DESC",
+    `SELECT g.*,
+            COUNT(t.id) AS agg_task_count,
+            SUM(CASE WHEN t.done THEN 1 ELSE 0 END) AS agg_task_done_count
+     FROM goals g
+     LEFT JOIN phases p ON p.goal_id = g.id
+     LEFT JOIN tasks t ON t.phase_id = p.id
+     WHERE g.user_id = ?
+     GROUP BY g.id
+     ORDER BY g.sort_order ASC, g.created_at DESC`,
   )
     .bind(user.id)
     .all();
-  return c.json({ goals: rows.results });
+
+  const goalsOut = (rows.results as Record<string, unknown>[]).map((g) => {
+    const { agg_task_count, agg_task_done_count, ...rest } = g;
+    return {
+      ...rest,
+      task_count: Number(agg_task_count) || 0,
+      task_done_count: Number(agg_task_done_count) || 0,
+    };
+  });
+
+  return c.json({ goals: goalsOut });
 });
 
 goals.post("/", async (c) => {

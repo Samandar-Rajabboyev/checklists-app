@@ -1,9 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Change '/checklists-app/' to match your GitHub repo name
-// e.g. if your repo is github.com/yourname/my-checklists → '/my-checklists/'
+// Served from the domain root by the Cloudflare Worker (see wrangler.toml),
+// not a GitHub Pages subpath, so base stays '/'.
 export default defineConfig({
   plugins: [react()],
-  base: '/checklists-app/',
+  base: '/',
+  server: {
+    proxy: {
+      '/api': 'http://localhost:8787',
+    },
+  },
 })

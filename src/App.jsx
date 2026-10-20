@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { SCHEMES, applyScheme } from "./constants.js";
 import {
-  uid,
   loadData,
-  saveData,
   loadScheme,
   saveScheme,
   loadMode,
   saveMode,
 } from "./lib/storage.js";
+import { api } from "./lib/api.js";
+import { useAuth } from "./hooks/useAuth.js";
+import { useGoals } from "./hooks/useGoals.js";
 import { styles } from "./styles/classic.js";
 import { modernStyles } from "./styles/modern.js";
 import { plainStyles } from "./styles/plain.js";
@@ -17,22 +18,66 @@ import { Modal } from "./components/Modal.jsx";
 import { Home } from "./components/Home.jsx";
 import { Detail } from "./components/Detail.jsx";
 import { PlainApp } from "./components/PlainApp.jsx";
+import { Login } from "./components/Login.jsx";
 
 // ──── App Root ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [checklists, setChecklists] = useState(loadData);
+  const { user, loading: authLoading } = useAuth();
+
+  return (
+    <>
+      <style>{styles}</style>
+      {authLoading ? (
+        <div className="login-loading">loading…</div>
+      ) : user ? (
+        <AuthedApp />
+      ) : (
+        <Login />
+      )}
+    </>
+  );
+}
+
+function AuthedApp() {
+  const {
+    checklists,
+    createChecklist,
+    updateChecklist,
+    changeChecklist,
+    deleteChecklist,
+    archiveChecklist,
+    importChecklists,
+    selectChecklist,
+  } = useGoals();
   const [view, setView] = useState("home");
   const [activeId, setActiveId] = useState(null);
   const [modal, setModal] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [scheme, setScheme] = useState(loadScheme);
   const [uiMode, setUiMode] = useState(loadMode);
+  const [importPrompt, setImportPrompt] = useState(false);
 
-  const persist = useCallback((next) => {
-    setChecklists(next);
-    saveData(next);
-  }, []);
+  // First login after the localStorage-only era: if there's legacy local
+  // data and the account has no goals yet, offer to bring it over once.
+  useEffect(() => {
+    const legacy = loadData();
+    const alreadyOffered = sessionStorage.getItem("import-offered");
+    if (legacy.length > 0 && checklists.length === 0 && !alreadyOffered) {
+      setImportPrompt(true);
+    }
+  }, [checklists.length]);
+
+  const handleImportLegacy = async () => {
+    sessionStorage.setItem("import-offered", "1");
+    setImportPrompt(false);
+    const legacy = loadData();
+    await importChecklists(legacy);
+  };
+  const dismissImportPrompt = () => {
+    sessionStorage.setItem("import-offered", "1");
+    setImportPrompt(false);
+  };
 
   const cycleScheme = useCallback((direct) => {
     setScheme((s) => {
@@ -91,35 +136,28 @@ export default function App() {
   const handleSelect = (id) => {
     setActiveId(id);
     setView("detail");
+    selectChecklist(id);
   };
   const handleBack = () => {
     setView("home");
     setActiveId(null);
   };
-  const handleSave = (data) => {
-    if (modal === "new") persist([...checklists, data]);
-    else {
-      persist(checklists.map((cl) => (cl.id === data.id ? data : cl)));
+  const handleSave = async (data) => {
+    if (modal === "new") {
+      const created = await createChecklist(data);
+      setActiveId(created.id);
+    } else {
+      await updateChecklist(data);
       setActiveId(data.id);
     }
     setModal(null);
   };
-  const handleChange = (upd) =>
-    persist(checklists.map((cl) => (cl.id === upd.id ? upd : cl)));
-  const handleDelete = () => {
-    persist(checklists.filter((cl) => cl.id !== activeId));
+  const handleDelete = async () => {
+    await deleteChecklist(activeId);
     setView("home");
     setActiveId(null);
   };
-  const handleArchive = () => {
-    const cl = checklists.find((c) => c.id === activeId);
-    if (cl)
-      persist(
-        checklists.map((c) =>
-          c.id === activeId ? { ...c, archived: !c.archived } : c,
-        ),
-      );
-  };
+  const handleArchive = () => archiveChecklist(activeId);
   const handleExport = () => {
     const cl = checklists.find((c) => c.id === activeId);
     if (!cl) return;
@@ -130,40 +168,50 @@ export default function App() {
     a.download = `${cl.title.replace(/\s+/g, "-").toLowerCase()}.json`;
     a.click();
   };
-  const handleImport = (items) => {
-    const ex = new Set(checklists.map((c) => c.id));
-    persist([
-      ...checklists,
-      ...items.map((it) => (ex.has(it.id) ? { ...it, id: uid() } : it)),
-    ]);
-  };
+  const handleImport = (items) => importChecklists(items);
 
   const active = checklists.find((cl) => cl.id === activeId);
 
   return (
     <>
-      <style>{styles}</style>
       {uiMode === "modern" && <style>{modernStyles}</style>}
       {uiMode === "plain" && <style>{plainStyles}</style>}
       {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
+      {importPrompt && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 420 }}>
+            <div className="modal-title serif">Import local checklists?</div>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 16 }}>
+              We found checklists saved in this browser from before sign-in.
+              Bring them into your account?
+            </p>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={dismissImportPrompt}>
+                Skip
+              </button>
+              <button className="btn-save" onClick={handleImportLegacy}>
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {uiMode === "plain" ? (
         <PlainApp
           checklists={checklists}
-          onSave={(data, isNew) => {
-            if (isNew) persist([...checklists, data]);
-            else
-              persist(checklists.map((cl) => (cl.id === data.id ? data : cl)));
+          onSave={async (data, isNew) => {
+            // Overloaded by PlainApp: 2-arg calls come from the modal
+            // (full create/edit); 1-arg calls are bulk phase/task
+            // mutations from keyboard nav, same shape as Detail.onChange.
+            if (isNew === undefined) changeChecklist(data);
+            else if (isNew) await createChecklist(data);
+            else await updateChecklist(data);
           }}
-          onDelete={(id) => persist(checklists.filter((cl) => cl.id !== id))}
-          onArchive={(id) =>
-            persist(
-              checklists.map((cl) =>
-                cl.id === id ? { ...cl, archived: !cl.archived } : cl,
-              ),
-            )
-          }
+          onDelete={(id) => deleteChecklist(id)}
+          onArchive={(id) => archiveChecklist(id)}
           onExport={handleExport}
           onImport={handleImport}
+          selectChecklist={selectChecklist}
           onToggleMode={() =>
             setUiMode((m) => {
               const n =
@@ -201,10 +249,10 @@ export default function App() {
             })
           }
         />
-      ) : active ? (
+      ) : active?.phases ? (
         <Detail
           checklist={active}
-          onChange={handleChange}
+          onChange={changeChecklist}
           onBack={handleBack}
           onEdit={() => setModal("edit")}
           onDelete={handleDelete}

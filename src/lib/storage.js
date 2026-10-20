@@ -49,6 +49,12 @@ export const loadScheme = () => {
 export const saveScheme = (s) => ls.set("scheme", s.id);
 
 export const getProgress = (cl) => {
+  // Home-list rows come from the API's summary endpoint, which carries
+  // precomputed task_count/task_done_count instead of a full phases tree
+  // (that tree is fetched separately, only for the detail view).
+  if (!cl.phases) {
+    return { done: cl.task_done_count ?? 0, total: cl.task_count ?? 0 };
+  }
   let done = 0,
     total = 0;
   for (const ph of cl.phases)
