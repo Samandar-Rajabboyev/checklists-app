@@ -68,13 +68,16 @@ export function HelpOverlay({ onClose }) {
           ["dd", "delete selected"],
           ["V · Esc", "exit"],
         ])}
-        {section("Modal", [
-          ["Tab", "next field"],
-          ["Ctrl+Enter", "save"],
-          ["Ctrl+P", "add phase"],
-          ["Ctrl+T", "add task"],
-          ["↑/↓ buttons", "reorder phases"],
-          ["Esc", "close"],
+        {section("Goal editor", [
+          ["Enter", "next task"],
+          ["Enter on empty line", "new phase"],
+          ["Shift+Enter", "new phase"],
+          ["↑/↓", "move between lines"],
+          ["Alt+↑/↓", "reorder task / phase"],
+          ["Backspace on empty", "delete line"],
+          ["paste a list", "one task per line, # heading = phase"],
+          ["Ctrl/⌘+Enter", "save"],
+          ["Esc", "close (asks if unsaved)"],
         ])}
         <div className="help-close">
           press <kbd>?</kbd> or <kbd>Esc</kbd> to close

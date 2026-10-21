@@ -1,109 +1,30 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { ACCENT_COLORS } from "../constants.js";
-import { uid } from "../lib/storage.js";
+import { uid, ls } from "../lib/storage.js";
+import { TEMPLATES, blankTask, blankPhase, buildPhasesFromTemplate } from "../lib/templates.js";
+import { parsePastedList } from "../lib/pasteList.js";
+import { goalModalStyles } from "../styles/goalModal.js";
 
-// ──── Category templates ────────────────────────────────────────────────────
-// Starter phases/tasks offered when creating a NEW goal, keyed by category.
-// Picking one just seeds the `phases` state below — fully editable after.
+// ──── Goal editor (create + edit) ─────────────────────────────────────────────
+//
+// Built to be typed through like an outliner: title → Enter → tasks, Enter
+// for the next task, Enter on an empty last task for a new phase, ↑/↓ to
+// move between lines, ⌥↑/↓ to reorder, paste a list to add many at once.
+// Rarely-changed fields live in a collapsed "details" row. New-goal input
+// is autosaved as a draft; closing with unsaved changes asks first.
 
-const TEMPLATES = {
-  software: {
-    label: "Software Project",
-    emoji: "💻",
-    phases: [
-      {
-        label: "Phase 0",
-        title: "Planning",
-        duration: "",
-        tasks: ["Define scope & requirements", "Pick stack & tooling", "Set up repo & CI"],
-      },
-      {
-        label: "Phase 1",
-        title: "Build",
-        duration: "",
-        tasks: ["Implement core features", "Write tests", "Code review pass"],
-      },
-      {
-        label: "Phase 2",
-        title: "Launch",
-        duration: "",
-        tasks: ["Deploy to production", "Write docs / README", "Announce & gather feedback"],
-      },
-    ],
-  },
-  study: {
-    label: "Study Plan",
-    emoji: "📚",
-    phases: [
-      {
-        label: "Phase 0",
-        title: "Foundations",
-        duration: "",
-        tasks: ["Gather materials / syllabus", "Skim overview & build a roadmap"],
-      },
-      {
-        label: "Phase 1",
-        title: "Core Learning",
-        duration: "",
-        tasks: ["Work through main material", "Take notes & summarize each unit", "Do practice exercises"],
-      },
-      {
-        label: "Phase 2",
-        title: "Review & Assess",
-        duration: "",
-        tasks: ["Take a practice test", "Review weak areas", "Final review session"],
-      },
-    ],
-  },
-  business: {
-    label: "Business Plan",
-    emoji: "📈",
-    phases: [
-      {
-        label: "Phase 0",
-        title: "Validate",
-        duration: "",
-        tasks: ["Define target customer", "Talk to potential customers", "Validate pricing"],
-      },
-      {
-        label: "Phase 1",
-        title: "Build",
-        duration: "",
-        tasks: ["Build MVP / offer", "Set up basic operations", "Prepare launch assets"],
-      },
-      {
-        label: "Phase 2",
-        title: "Grow",
-        duration: "",
-        tasks: ["Launch to first customers", "Set up tracking / metrics", "Iterate on feedback"],
-      },
-    ],
-  },
-  blank: {
-    label: "Blank",
-    emoji: "📋",
-    phases: [{ label: "Phase 0", title: "", duration: "", tasks: [""] }],
-  },
-};
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const MOD = IS_MAC ? "⌘" : "Ctrl";
+const ALT = IS_MAC ? "⌥" : "Alt";
+const DRAFT_KEY = "goal-draft";
+const AUTO_LABEL = /^Phase \d+$/;
 
-function buildPhasesFromTemplate(key) {
-  const tpl = TEMPLATES[key];
-  if (!tpl) return null;
-  return tpl.phases.map((ph) => ({
-    id: uid(),
-    label: ph.label,
-    title: ph.title,
-    duration: ph.duration,
-    tasks: ph.tasks.map((text) => ({
-      id: uid(),
-      text,
-      tag: "",
-      done: false,
-      priority: "none",
-      due_date: "",
-    })),
-  }));
-}
+const EMOJIS = [
+  "📋", "🎯", "🚀", "💻", "📚", "📈", "💡", "🛠️",
+  "🎨", "✍️", "🏃", "💪", "🧘", "🍎", "💰", "🏠",
+  "✈️", "🎓", "🧪", "📱", "🌱", "🔥", "⭐", "🏆",
+  "🎵", "📷", "🧠", "❤️", "🗂️", "📝", "⚙️", "🌍",
+];
 
 const CATEGORIES = [
   { id: "software", label: "Software" },
@@ -114,7 +35,7 @@ const CATEGORIES = [
 ];
 
 const PRIORITIES = [
-  { id: "none", label: "—", color: "var(--text-muted)" },
+  { id: "none", label: "!", color: "var(--text-muted)" },
   { id: "low", label: "L", color: "#2AA65A" },
   { id: "medium", label: "M", color: "#D4A22A" },
   { id: "high", label: "H", color: "#D4522A" },
@@ -124,497 +45,887 @@ const nextPriority = (p) => {
   return PRIORITIES[(i + 1) % PRIORITIES.length].id;
 };
 
-// ──── Modal ───────────────────────────────────────────────────────────────────
+const fmtDate = (d) =>
+  new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const daysUntil = (d) => Math.ceil((new Date(`${d}T00:00:00`) - new Date().setHours(0, 0, 0, 0)) / 86400000);
 
-export function Modal({ initial, onSave, onClose }) {
-  const [emoji, setEmoji] = useState(initial?.emoji || "📋");
-  const [title, setTitle] = useState(initial?.title || "");
-  const [desc, setDesc] = useState(initial?.description || "");
-  const [color, setColor] = useState(initial?.color || "#D4522A");
-  const [category, setCategory] = useState(initial?.category || "custom");
-  const [duration, setDuration] = useState(
-    initial?.total_days ? `~${initial.total_days} days` : "",
-  );
-  // Only offer the blank-page template picker for brand-new goals.
-  const [templatePicked, setTemplatePicked] = useState(!!initial);
-  const [phases, setPhases] = useState(
-    initial?.phases?.map((p) => ({
-      id: p.id,
-      label: p.label,
-      title: p.title,
-      duration: p.duration,
+function formFromGoal(goal) {
+  if (!goal) {
+    return {
+      emoji: "📋",
+      title: "",
+      desc: "",
+      color: ACCENT_COLORS[0],
+      category: "custom",
+      days: "",
+      targetDate: "",
+      phases: [blankPhase()],
+    };
+  }
+  return {
+    emoji: goal.emoji || "📋",
+    title: goal.title || "",
+    desc: goal.description || "",
+    color: goal.color || ACCENT_COLORS[0],
+    category: goal.category || "custom",
+    days: goal.total_days ? String(goal.total_days) : "",
+    targetDate: goal.target_date || "",
+    // Keep every server field on phases/tasks (notes, completed_at…) so
+    // saving from here doesn't drop what the editor doesn't show.
+    phases: (goal.phases || []).map((p) => ({
+      ...p,
+      label: AUTO_LABEL.test(p.label || "") ? "" : p.label || "",
+      title: p.title || "",
+      duration: p.duration || "",
       tasks: p.tasks.map((t) => ({
-        id: t.id,
-        text: t.text,
+        ...t,
         tag: t.tag || "",
-        done: t.done,
         priority: t.priority || "none",
         due_date: t.due_date || "",
       })),
-    })) || [
-      {
-        id: uid(),
-        label: "Phase 0",
-        title: "",
-        duration: "",
-        tasks: [{ id: uid(), text: "", tag: "", done: false, priority: "none", due_date: "" }],
-      },
-    ],
-  );
-  const lastPhaseId = useRef(phases[phases.length - 1]?.id);
+    })),
+  };
+}
 
-  const pickTemplate = (key) => {
-    const built = buildPhasesFromTemplate(key);
-    if (built) {
-      setPhases(built);
-      lastPhaseId.current = built[built.length - 1]?.id;
+const hasContent = (f) =>
+  !!(f.title.trim() || f.desc.trim() || f.phases.some((p) => p.title.trim() || p.tasks.some((t) => t.text.trim())));
+
+function readDraft() {
+  try {
+    const d = JSON.parse(ls.get(DRAFT_KEY) || "null");
+    return d && Array.isArray(d.phases) && hasContent(d) ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+export function Modal({ initial, onSave, onClose }) {
+  const isNew = !initial;
+  // An edit opened on a summary row (no phases loaded) must not save a
+  // phases array, or the sync would read it as "delete every phase".
+  const treeLoaded = isNew || Array.isArray(initial.phases);
+
+  const [restoredDraft, setRestoredDraft] = useState(() => isNew && !!readDraft());
+  const [form, setForm] = useState(() => (isNew && readDraft()) || formFromGoal(initial));
+  const baseline = useRef(JSON.stringify(form));
+  const dirty = isNew ? hasContent(form) : JSON.stringify(form) !== baseline.current;
+
+  const [showDetails, setShowDetails] = useState(!!initial?.description);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [titleError, setTitleError] = useState(false);
+  const [armedPhase, setArmedPhase] = useState(null); // phase id awaiting 2nd delete click
+  const [template, setTemplate] = useState(null); // { key, snap }
+  const [dropAt, setDropAt] = useState(null); // { pid, index }
+  const dragging = useRef(null); // { pid, tid }
+
+  const bodyRef = useRef(null);
+  const titleRef = useRef(null);
+  const emojiRef = useRef(null);
+  const pendingFocus = useRef(null);
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const setPhases = (phases) => setForm((f) => ({ ...f, phases }));
+  const { phases } = form;
+
+  // ── Draft autosave (new goals only) ──────────────────────────────────────
+  useEffect(() => {
+    if (isNew) ls.set(DRAFT_KEY, hasContent(form) ? JSON.stringify(form) : "");
+  }, [isNew, form]);
+
+  // ── Focus plumbing: focus an element by nav id after the next render ────
+  useLayoutEffect(() => {
+    const pf = pendingFocus.current;
+    if (!pf) return;
+    pendingFocus.current = null;
+    const el = bodyRef.current?.querySelector(`[data-nav="${pf.id}"]`);
+    if (!el) return;
+    el.focus();
+    const pos = pf.caret === "start" ? 0 : el.value.length;
+    try {
+      el.setSelectionRange(pos, pos);
+    } catch {}
+    el.scrollIntoView({ block: "nearest" });
+  });
+  const focusSoon = (id, caret = "end") => {
+    pendingFocus.current = { id, caret };
+  };
+  const navEls = () => [...(bodyRef.current?.querySelectorAll("[data-nav]") || [])];
+  const focusSibling = (el, delta) => {
+    const els = navEls();
+    const target = els[els.indexOf(el) + delta];
+    if (target) {
+      target.focus();
+      try {
+        target.setSelectionRange(target.value.length, target.value.length);
+      } catch {}
+      return true;
     }
-    if (key !== "blank" && TEMPLATES[key]) {
-      setCategory(key);
-      if (!emoji || emoji === "📋") setEmoji(TEMPLATES[key].emoji);
+    return false;
+  };
+
+  // ── Close / save ─────────────────────────────────────────────────────────
+  const discard = () => {
+    if (isNew) ls.set(DRAFT_KEY, "");
+    onClose();
+  };
+  const requestClose = () => {
+    if (emojiOpen) return setEmojiOpen(false);
+    if (confirmDiscard || !dirty) return discard();
+    setConfirmDiscard(true);
+  };
+
+  const save = () => {
+    const title = form.title.trim();
+    if (!title) {
+      setTitleError(true);
+      titleRef.current?.focus();
+      return;
     }
-    setTemplatePicked(true);
-    setTimeout(() => {
-      document.querySelector(".modal-title-input")?.focus();
-    }, 30);
-  };
-
-  const addPhase = () => {
-    const np = {
-      id: uid(),
-      label: `Phase ${phases.length}`,
-      title: "",
-      duration: "",
-      tasks: [{ id: uid(), text: "", tag: "", done: false, priority: "none", due_date: "" }],
-    };
-    setPhases((p) => [...p, np]);
-    lastPhaseId.current = np.id;
-    setTimeout(() => {
-      const el = document.querySelector(
-        ".modal-phase:last-child .modal-phase-header input",
-      );
-      if (el) el.focus();
-    }, 30);
-  };
-  const insertPhaseAfter = (pid) => {
-    const np = {
-      id: uid(),
-      label: `Phase ${phases.length}`,
-      title: "",
-      duration: "",
-      tasks: [{ id: uid(), text: "", tag: "", done: false, priority: "none", due_date: "" }],
-    };
-    setPhases((p) => {
-      const i = p.findIndex((ph) => ph.id === pid);
-      const a = [...p];
-      a.splice(i + 1, 0, np);
-      return a;
-    });
-    lastPhaseId.current = np.id;
-  };
-  const movePhase = (pid, dir) =>
-    setPhases((p) => {
-      const i = p.findIndex((ph) => ph.id === pid),
-        to = dir === "up" ? i - 1 : i + 1;
-      if (to < 0 || to >= p.length) return p;
-      const a = [...p];
-      [a[i], a[to]] = [a[to], a[i]];
-      return a;
-    });
-  const removePhase = (pid) =>
-    setPhases((p) => p.filter((ph) => ph.id !== pid));
-  const updatePhase = (pid, f, v) =>
-    setPhases((p) => p.map((ph) => (ph.id === pid ? { ...ph, [f]: v } : ph)));
-  const addTask = (pid) => {
-    setPhases((p) =>
-      p.map((ph) =>
-        ph.id === pid
-          ? {
-              ...ph,
-              tasks: [
-                ...ph.tasks,
-                { id: uid(), text: "", tag: "", done: false, priority: "none", due_date: "" },
-              ],
-            }
-          : ph,
-      ),
-    );
-    setTimeout(() => {
-      const ph = document.querySelector(`.modal-phase[data-id="${pid}"]`);
-      if (ph) {
-        const ins = ph.querySelectorAll(".phase-task-row input");
-        if (ins[ins.length - 1]) ins[ins.length - 1].focus();
-      }
-    }, 30);
-  };
-  const removeTask = (pid, tid) =>
-    setPhases((p) =>
-      p.map((ph) =>
-        ph.id === pid
-          ? { ...ph, tasks: ph.tasks.filter((t) => t.id !== tid) }
-          : ph,
-      ),
-    );
-  const updateTask = (pid, tid, v) =>
-    setPhases((p) =>
-      p.map((ph) =>
-        ph.id === pid
-          ? {
-              ...ph,
-              tasks: ph.tasks.map((t) =>
-                t.id === tid ? { ...t, text: v } : t,
-              ),
-            }
-          : ph,
-      ),
-    );
-  const updateTaskField = (pid, tid, field, v) =>
-    setPhases((p) =>
-      p.map((ph) =>
-        ph.id === pid
-          ? {
-              ...ph,
-              tasks: ph.tasks.map((t) =>
-                t.id === tid ? { ...t, [field]: v } : t,
-              ),
-            }
-          : ph,
-      ),
-    );
-  const cycleTaskPriority = (pid, tid) =>
-    setPhases((p) =>
-      p.map((ph) =>
-        ph.id === pid
-          ? {
-              ...ph,
-              tasks: ph.tasks.map((t) =>
-                t.id === tid ? { ...t, priority: nextPriority(t.priority) } : t,
-              ),
-            }
-          : ph,
-      ),
-    );
-
-  const handleSave = () => {
-    if (!title.trim()) return;
-    onSave({
+    const days = parseInt(form.days, 10);
+    const goal = {
       id: initial?.id || uid(),
-      emoji,
-      title: title.trim(),
-      description: desc.trim(),
-      color,
-      category,
-      total_days: parseInt(duration) || null,
+      emoji: form.emoji.trim() || "📋",
+      title,
+      description: form.desc.trim(),
+      color: form.color,
+      category: form.category,
+      total_days: days > 0 ? days : null,
+      target_date: form.targetDate || null,
       created_at: initial?.created_at || new Date().toISOString().slice(0, 10),
-      phases: phases
-        .map((ph) => ({
-          id: ph.id,
-          label: ph.label,
-          title: ph.title,
-          duration: ph.duration,
-          tasks: ph.tasks
+    };
+    if (treeLoaded) {
+      goal.phases = phases
+        .map((p) => ({
+          ...p,
+          title: p.title.trim(),
+          duration: p.duration.trim(),
+          tasks: p.tasks
             .filter((t) => t.text.trim())
-            .map((t) => ({
-              id: t.id,
-              text: t.text,
-              done: t.done,
-              ...(t.tag ? { tag: t.tag } : {}),
-              priority: t.priority || "none",
-              due_date: t.due_date || null,
-            })),
+            .map((t) => ({ ...t, text: t.text.trim(), due_date: t.due_date || null })),
         }))
-        .filter((ph) => ph.title || ph.tasks.length),
-    });
+        .filter((p) => p.title || p.label.trim() || p.tasks.length)
+        .map((p, i) => ({ ...p, label: p.label.trim() || `Phase ${i}` }));
+    }
+    if (isNew) ls.set(DRAFT_KEY, "");
+    onSave(goal);
   };
+
+  // Dialog-level keys. Every keydown stops here: Home/Detail/plain mode
+  // bind single-letter shortcuts on window, and they must not fire while
+  // typing (or after clicking a button) in the editor. The dialog is
+  // focusable, so focus never falls back to <body> while it's open.
+  const onDialogKey = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      requestClose();
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === "Enter" || e.key === "s")) {
+      e.preventDefault();
+      save();
+    }
+    e.stopPropagation();
+  };
+
+  // Any edit cancels a pending "discard?" prompt.
+  useEffect(() => {
+    setConfirmDiscard(false);
+  }, [form]);
 
   useEffect(() => {
-    const h = (e) => {
-      if (e.key === "Escape") {
-        onClose();
+    if (!emojiOpen) return;
+    const h = (e) => !emojiRef.current?.contains(e.target) && setEmojiOpen(false);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [emojiOpen]);
+
+  useEffect(() => {
+    if (!armedPhase) return;
+    const t = setTimeout(() => setArmedPhase(null), 2500);
+    return () => clearTimeout(t);
+  }, [armedPhase]);
+
+  // ── Templates ────────────────────────────────────────────────────────────
+  const phasesEmpty = phases.every((p) => !p.title.trim() && p.tasks.every((t) => !t.text.trim()));
+  const showTemplates = isNew && (phasesEmpty || (template && JSON.stringify(phases) === template.snap));
+  const pickTemplate = (key) => {
+    if (template?.key === key) {
+      setTemplate(null);
+      setPhases([blankPhase()]);
+      return;
+    }
+    const built = buildPhasesFromTemplate(key);
+    setForm((f) => ({
+      ...f,
+      phases: built,
+      category: key,
+      emoji: f.emoji === "📋" || Object.values(TEMPLATES).some((t) => t.emoji === f.emoji) ? TEMPLATES[key].emoji : f.emoji,
+    }));
+    setTemplate({ key, snap: JSON.stringify(built) });
+  };
+
+  const startFresh = () => {
+    ls.set(DRAFT_KEY, "");
+    setForm(formFromGoal(null));
+    setRestoredDraft(false);
+    setTemplate(null);
+    titleRef.current?.focus();
+  };
+
+  // ── Phase operations ─────────────────────────────────────────────────────
+  const updatePhase = (pid, patch) => setPhases(phases.map((p) => (p.id === pid ? { ...p, ...patch } : p)));
+  const insertPhaseAfter = (pid) => {
+    const np = blankPhase();
+    const i = phases.findIndex((p) => p.id === pid);
+    const next = [...phases];
+    next.splice(i + 1, 0, np);
+    setPhases(next);
+    focusSoon(`ph:${np.id}`);
+  };
+  const addPhaseAtEnd = () => {
+    const np = blankPhase();
+    setPhases([...phases, np]);
+    focusSoon(`ph:${np.id}`);
+  };
+  const movePhase = (pid, dir) => {
+    const i = phases.findIndex((p) => p.id === pid);
+    const to = dir === "up" ? i - 1 : i + 1;
+    if (to < 0 || to >= phases.length) return;
+    const next = [...phases];
+    [next[i], next[to]] = [next[to], next[i]];
+    setPhases(next);
+    focusSoon(`ph:${pid}`);
+  };
+  const removePhase = (pid) => {
+    const ph = phases.find((p) => p.id === pid);
+    if (ph.tasks.some((t) => t.text.trim()) && armedPhase !== pid) {
+      setArmedPhase(pid);
+      return;
+    }
+    setArmedPhase(null);
+    const rest = phases.filter((p) => p.id !== pid);
+    setPhases(rest.length ? rest : [blankPhase()]);
+  };
+
+  // ── Task operations ──────────────────────────────────────────────────────
+  const mapTasks = (pid, fn) => phases.map((p) => (p.id === pid ? { ...p, tasks: fn(p.tasks) } : p));
+  const updateTask = (pid, tid, patch) =>
+    setPhases(mapTasks(pid, (ts) => ts.map((t) => (t.id === tid ? { ...t, ...patch } : t))));
+  const insertTask = (pid, index, task = blankTask(), caret = "end") => {
+    setPhases(mapTasks(pid, (ts) => [...ts.slice(0, index), task, ...ts.slice(index)]));
+    focusSoon(`t:${task.id}`, caret);
+  };
+  const removeTask = (pid, tid) => setPhases(mapTasks(pid, (ts) => ts.filter((t) => t.id !== tid)));
+
+  const moveTask = (pid, tid, dir) => {
+    const pi = phases.findIndex((p) => p.id === pid);
+    const ti = phases[pi].tasks.findIndex((t) => t.id === tid);
+    const task = phases[pi].tasks[ti];
+    const next = phases.map((p) => ({ ...p, tasks: [...p.tasks] }));
+    const nti = dir === "up" ? ti - 1 : ti + 1;
+    next[pi].tasks.splice(ti, 1);
+    if (nti >= 0 && nti <= next[pi].tasks.length) {
+      next[pi].tasks.splice(nti, 0, task);
+    } else {
+      // Past the edge of the phase: hop into the neighbouring one.
+      const npi = dir === "up" ? pi - 1 : pi + 1;
+      if (npi < 0 || npi >= next.length) return;
+      if (dir === "up") next[npi].tasks.push(task);
+      else next[npi].tasks.unshift(task);
+    }
+    setPhases(next);
+    focusSoon(`t:${tid}`);
+  };
+
+  const moveTaskTo = (from, to) => {
+    const src = phases.find((p) => p.id === from.pid);
+    const ti = src.tasks.findIndex((t) => t.id === from.tid);
+    const task = src.tasks[ti];
+    let index = to.index;
+    if (from.pid === to.pid && ti < index) index--;
+    const without = phases.map((p) => (p.id === from.pid ? { ...p, tasks: p.tasks.filter((t) => t.id !== from.tid) } : p));
+    setPhases(
+      without.map((p) =>
+        p.id === to.pid ? { ...p, tasks: [...p.tasks.slice(0, index), task, ...p.tasks.slice(index)] } : p,
+      ),
+    );
+  };
+
+  // Paste a multi-line list → many tasks (and phases for "# headings").
+  // `tid` null = pasted into the phase's "Add a task…" line.
+  const pasteList = (e, pid, tid) => {
+    const text = e.clipboardData.getData("text/plain");
+    if (!text.trim().includes("\n")) return;
+    const items = parsePastedList(text);
+    if (!items.length) return;
+    e.preventDefault();
+
+    const next = phases.map((p) => ({ ...p, tasks: [...p.tasks] }));
+    const pi = next.findIndex((p) => p.id === pid);
+    let target = next[pi];
+    let at = target.tasks.length;
+    if (tid) {
+      const ti = target.tasks.findIndex((t) => t.id === tid);
+      if (target.tasks[ti].text.trim()) at = ti + 1;
+      else {
+        target.tasks.splice(ti, 1);
+        at = ti;
+      }
+    }
+    const newPhases = [];
+    let lastId = null;
+    for (const it of items) {
+      if (it.type === "phase") {
+        target = blankPhase(it.title);
+        newPhases.push(target);
+        at = 0;
+        lastId = null;
+        continue;
+      }
+      const t = blankTask(it.text, it.done);
+      target.tasks.splice(at++, 0, t);
+      lastId = t.id;
+    }
+    next.splice(pi + 1, 0, ...newPhases);
+    setPhases(next);
+    focusSoon(lastId ? `t:${lastId}` : `add:${target.id}`);
+  };
+
+  // ── Keyboard handlers ────────────────────────────────────────────────────
+  const onArrows = (e, onAltMove) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return false;
+    e.preventDefault();
+    if (e.altKey) onAltMove?.(e.key === "ArrowUp" ? "up" : "down");
+    else focusSibling(e.currentTarget, e.key === "ArrowUp" ? -1 : 1);
+    return true;
+  };
+
+  const onTitleKey = (e) => {
+    if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      focusSibling(e.currentTarget, 1);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      focusSibling(e.currentTarget, 1);
+    }
+  };
+
+  const onPhaseTitleKey = (e, ph) => {
+    if (onArrows(e, (dir) => movePhase(ph.id, dir))) return;
+    if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      if (e.shiftKey) insertPhaseAfter(ph.id);
+      else focusSibling(e.currentTarget, 1); // first task, or the "Add a task" line
+    } else if (e.key === "Backspace" && !ph.title && !ph.tasks.length && phases.length > 1) {
+      e.preventDefault();
+      focusSibling(e.currentTarget, -1);
+      removePhase(ph.id);
+    }
+  };
+
+  const onTaskKey = (e, ph, t, ti) => {
+    if (onArrows(e, (dir) => moveTask(ph.id, t.id, dir))) return;
+    if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      const isLast = ti === ph.tasks.length - 1;
+      if (e.shiftKey || (!t.text.trim() && isLast)) {
+        // Shift+Enter, or Enter on an empty last line: start a new phase.
+        if (!t.text.trim()) {
+          const np = blankPhase();
+          const next = phases.map((p) => (p.id === ph.id ? { ...p, tasks: p.tasks.filter((x) => x.id !== t.id) } : p));
+          next.splice(next.findIndex((p) => p.id === ph.id) + 1, 0, np);
+          setPhases(next);
+          focusSoon(`ph:${np.id}`);
+        } else insertPhaseAfter(ph.id);
         return;
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        handleSave();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "p") {
-        e.preventDefault();
-        addPhase();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "t") {
-        e.preventDefault();
-        const pid = lastPhaseId.current;
-        if (pid) addTask(pid);
-      }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose, phases]);
+      // Split at the caret, outliner-style.
+      const pos = e.currentTarget.selectionStart ?? t.text.length;
+      const before = t.text.slice(0, pos);
+      const after = t.text.slice(pos);
+      const nt = blankTask(after);
+      setPhases(
+        mapTasks(ph.id, (ts) => {
+          const out = ts.map((x) => (x.id === t.id ? { ...x, text: before } : x));
+          out.splice(ti + 1, 0, nt);
+          return out;
+        }),
+      );
+      focusSoon(`t:${nt.id}`, "start");
+    } else if (e.key === "Backspace" && t.text === "") {
+      e.preventDefault();
+      focusSibling(e.currentTarget, -1);
+      removeTask(ph.id, t.id);
+    }
+  };
+
+  const onAddLineKey = (e, ph) => {
+    if (onArrows(e)) return;
+    if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      // Empty "Add a task…" + Enter = done with this phase, start the next.
+      insertPhaseAfter(ph.id);
+    } else if (e.key === "Backspace") {
+      e.preventDefault();
+      focusSibling(e.currentTarget, -1);
+    }
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  const taskCount = phases.reduce((n, p) => n + p.tasks.filter((t) => t.text.trim()).length, 0);
+  const phaseCount = phases.filter((p) => p.title.trim() || p.tasks.some((t) => t.text.trim())).length;
+  const categoryLabel = CATEGORIES.find((c) => c.id === form.category)?.label;
 
   return (
     <div
-      className="modal-overlay"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      className="gm-overlay"
+      onMouseDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        e.preventDefault(); // keep focus inside the dialog
+        requestClose();
+      }}
     >
-      <div className="modal">
-        <h2 className="modal-title serif">
-          {initial ? "Edit Checklist" : "New Checklist"}
-        </h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "80px 1fr",
-            gap: 12,
-            marginBottom: 16,
-          }}
-        >
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label>Emoji</label>
-            <input
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              maxLength={4}
-              style={{ textAlign: "center", fontSize: "1.4rem" }}
-            />
-          </div>
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label>Title</label>
-            <input
-              autoFocus
-              className="modal-title-input"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="My Checklist"
-            />
-          </div>
-        </div>
-        <div className="field">
-          <label>Description</label>
-          <textarea
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder="What's this for?"
-          />
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 12,
-            marginBottom: 16,
-          }}
-        >
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label>Duration</label>
-            <input
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder="~12 days"
-            />
-          </div>
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label>Accent Color</label>
-            <div className="color-swatches">
-              {ACCENT_COLORS.map((c) => (
-                <div
-                  key={c}
-                  className={`swatch${color === c ? " selected" : ""}`}
-                  style={{ background: c }}
-                  onClick={() => setColor(c)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="field">
-          <label>Category</label>
-          <div className="category-picker">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`category-btn${category === c.id ? " selected" : ""}`}
-                onClick={() => setCategory(c.id)}
-              >
-                {c.label}
+      <style>{goalModalStyles}</style>
+      <div className="gm" role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={onDialogKey} aria-label={isNew ? "New goal" : "Edit goal"}>
+        <div className="gm-body" ref={bodyRef}>
+          {restoredDraft && (
+            <div className="gm-banner">
+              <span>Restored your unsaved draft.</span>
+              <button className="gm-link" onClick={startFresh}>
+                Start fresh
               </button>
-            ))}
+            </div>
+          )}
+
+          {/* Emoji + title */}
+          <div className="gm-head-row">
+            <div className="gm-emoji-wrap" ref={emojiRef}>
+              <button
+                type="button"
+                className="gm-emoji-btn"
+                title="Change icon"
+                aria-label="Change icon"
+                tabIndex={-1}
+                onClick={() => setEmojiOpen((o) => !o)}
+              >
+                {form.emoji || "📋"}
+              </button>
+              {emojiOpen && (
+                <div className="gm-emoji-pop">
+                  {EMOJIS.map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      className={em === form.emoji ? "on" : ""}
+                      onClick={() => {
+                        set("emoji", em);
+                        setEmojiOpen(false);
+                        titleRef.current?.focus();
+                      }}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                  <input
+                    className="gm-input"
+                    placeholder="Or type / paste any emoji"
+                    maxLength={8}
+                    onChange={(e) => e.target.value.trim() && set("emoji", e.target.value.trim())}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setEmojiOpen(false);
+                        titleRef.current?.focus();
+                      }
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            <input
+              ref={titleRef}
+              autoFocus
+              data-nav="title"
+              className={`gm-title${titleError ? " gm-shake" : ""}`}
+              value={form.title}
+              placeholder={isNew ? "What's the goal?" : "Goal title"}
+              onChange={(e) => {
+                set("title", e.target.value);
+                setTitleError(false);
+              }}
+              onAnimationEnd={(e) => e.currentTarget.classList.remove("gm-shake")}
+              onKeyDown={onTitleKey}
+            />
+            <button className="gm-icon-btn gm-close" tabIndex={-1} aria-label="Close" onClick={requestClose}>
+              ×
+            </button>
           </div>
-        </div>
-        {!templatePicked && (
-          <div className="field">
-            <label>Quick Start</label>
-            <div className="template-picker">
+          {titleError && <div className="gm-error">Give your goal a name first.</div>}
+
+          {/* Templates */}
+          {showTemplates && (
+            <div className="gm-chips">
+              <span className="gm-chip-label">Start from</span>
               {Object.entries(TEMPLATES).map(([key, tpl]) => (
                 <button
                   key={key}
                   type="button"
-                  className="template-btn"
+                  tabIndex={-1}
+                  className={`gm-chip${template?.key === key ? " on" : ""}`}
                   onClick={() => pickTemplate(key)}
                 >
-                  <span className="template-btn-emoji">{tpl.emoji}</span>
+                  <span>{tpl.emoji}</span>
                   {tpl.label}
                 </button>
               ))}
             </div>
-          </div>
-        )}
-        <div className="modal-phases">
-          <div
-            style={{
-              fontSize: "0.68rem",
-              color: "var(--text-muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              marginBottom: 10,
-            }}
-          >
-            Phases
-          </div>
-          {phases.map((ph, pi) => (
-            <div className="modal-phase" key={ph.id} data-id={ph.id}>
-              <div className="modal-phase-header">
-                <input
-                  value={ph.label}
-                  onChange={(e) => updatePhase(ph.id, "label", e.target.value)}
-                  placeholder="Phase 0"
-                  onFocus={() => {
-                    lastPhaseId.current = ph.id;
+          )}
+
+          {/* Details (collapsed by default) */}
+          <button type="button" tabIndex={-1} className="gm-details-toggle" onClick={() => setShowDetails((s) => !s)}>
+            <span className="gm-caret">{showDetails ? "▾" : "▸"}</span>
+            {showDetails ? (
+              <span>Details</span>
+            ) : (
+              <>
+                <span className="gm-pill">{categoryLabel}</span>
+                <span className="gm-pill">
+                  <span className="gm-dot" style={{ background: form.color }} />
+                  color
+                </span>
+                {form.targetDate ? (
+                  <span className="gm-pill">due {fmtDate(form.targetDate)}</span>
+                ) : form.days ? (
+                  <span className="gm-pill">~{form.days} days</span>
+                ) : (
+                  <span className="gm-pill gm-pill-muted">+ deadline</span>
+                )}
+                <span className={`gm-pill${form.desc.trim() ? "" : " gm-pill-muted"}`}>
+                  {form.desc.trim() ? "description" : "+ description"}
+                </span>
+              </>
+            )}
+          </button>
+          {showDetails && (
+            <div className="gm-details">
+              <div className="gm-field">
+                <label htmlFor="gm-desc">Description</label>
+                <textarea
+                  id="gm-desc"
+                  className="gm-input"
+                  value={form.desc}
+                  placeholder="What's this for? What does done look like?"
+                  rows={2}
+                  onChange={(e) => {
+                    set("desc", e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${e.target.scrollHeight}px`;
                   }}
                 />
-                <input
-                  value={ph.title}
-                  onChange={(e) => updatePhase(ph.id, "title", e.target.value)}
-                  placeholder="Title"
-                  onFocus={() => {
-                    lastPhaseId.current = ph.id;
-                  }}
-                />
-                <input
-                  value={ph.duration}
-                  onChange={(e) =>
-                    updatePhase(ph.id, "duration", e.target.value)
-                  }
-                  placeholder="2 days"
-                  onFocus={() => {
-                    lastPhaseId.current = ph.id;
-                  }}
-                />
-                <div style={{ display: "flex", gap: 2 }}>
-                  <button
-                    className="remove-btn"
-                    title="Move up"
-                    onClick={() => movePhase(ph.id, "up")}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    className="remove-btn"
-                    title="Move down"
-                    onClick={() => movePhase(ph.id, "down")}
-                  >
-                    ↓
-                  </button>
-                  <button
-                    className="remove-btn"
-                    onClick={() => removePhase(ph.id)}
-                  >
-                    ×
-                  </button>
+              </div>
+              <div className="gm-field">
+                <label>Category</label>
+                <div className="gm-chips gm-chips-tight">
+                  {CATEGORIES.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`gm-chip${form.category === c.id ? " on" : ""}`}
+                      onClick={() => set("category", c.id)}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <div className="phase-tasks">
-                {ph.tasks.map((t) => {
-                  const pr =
-                    PRIORITIES.find((p) => p.id === (t.priority || "none")) ||
-                    PRIORITIES[0];
-                  return (
-                    <div className="phase-task-row" key={t.id}>
-                      <button
-                        type="button"
-                        className="priority-dot"
-                        title={`Priority: ${pr.id} (click to cycle)`}
-                        style={{ color: pr.color, borderColor: pr.color }}
-                        onClick={() => cycleTaskPriority(ph.id, t.id)}
-                      >
-                        {pr.label}
-                      </button>
-                      <input
-                        value={t.text}
-                        onChange={(e) => updateTask(ph.id, t.id, e.target.value)}
-                        placeholder="Task description"
-                        onFocus={() => {
-                          lastPhaseId.current = ph.id;
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addTask(ph.id);
-                          }
-                          if (e.key === "Backspace" && t.text === "") {
-                            e.preventDefault();
-                            removeTask(ph.id, t.id);
-                          }
-                        }}
-                      />
-                      <input
-                        type="date"
-                        className="task-due-input"
-                        value={t.due_date || ""}
-                        title="Due date"
-                        onChange={(e) =>
-                          updateTaskField(ph.id, t.id, "due_date", e.target.value)
-                        }
-                      />
-                      <button
-                        className="remove-btn"
-                        onClick={() => removeTask(ph.id, t.id)}
-                      >
-                        ×
-                      </button>
+              <div className="gm-row2">
+                <div className="gm-field">
+                  <label htmlFor="gm-target">Target date</label>
+                  <input
+                    id="gm-target"
+                    type="date"
+                    className="gm-input"
+                    value={form.targetDate}
+                    onChange={(e) => set("targetDate", e.target.value)}
+                  />
+                  {form.targetDate && (
+                    <div className="gm-hint">
+                      {daysUntil(form.targetDate) >= 0
+                        ? `${daysUntil(form.targetDate)} days from today`
+                        : `${-daysUntil(form.targetDate)} days ago`}
                     </div>
-                  );
-                })}
-                <button className="small-link" onClick={() => addTask(ph.id)}>
-                  + add task
-                </button>
+                  )}
+                </div>
+                <div className="gm-field">
+                  <label htmlFor="gm-days">Estimated effort</label>
+                  <div className="gm-suffix">
+                    <input
+                      id="gm-days"
+                      className="gm-input"
+                      inputMode="numeric"
+                      value={form.days}
+                      placeholder="—"
+                      onChange={(e) => set("days", e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    />
+                    <span>days</span>
+                  </div>
+                </div>
               </div>
-              <button
-                className="small-link"
-                style={{ marginTop: 4, display: "block" }}
-                onClick={() => insertPhaseAfter(ph.id)}
-              >
-                + insert phase below
-              </button>
+              <div className="gm-field">
+                <label>Accent color</label>
+                <div className="gm-swatches">
+                  {ACCENT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-label={`Color ${c}`}
+                      className={`gm-swatch${form.color === c ? " on" : ""}`}
+                      style={{ background: c }}
+                      onClick={() => set("color", c)}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
-          ))}
-          <button className="small-link" onClick={addPhase}>
-            + add phase at end
-          </button>
+          )}
+
+          {/* Phases & tasks */}
+          <div className="gm-section-label">
+            <span>Phases & tasks</span>
+          </div>
+          {!treeLoaded ? (
+            <div className="gm-hint">Loading phases…</div>
+          ) : (
+            phases.map((ph, pi) => (
+              <div className="gm-phase" key={ph.id}>
+                <div className="gm-phase-head">
+                  <input
+                    className="gm-phase-label"
+                    value={ph.label}
+                    placeholder={`Phase ${pi}`}
+                    title="Phase label (leave blank to auto-number)"
+                    tabIndex={-1}
+                    onChange={(e) => updatePhase(ph.id, { label: e.target.value })}
+                  />
+                  <input
+                    className="gm-phase-title"
+                    data-nav={`ph:${ph.id}`}
+                    value={ph.title}
+                    placeholder={pi === 0 ? "First phase, e.g. Planning" : "Phase name"}
+                    onChange={(e) => updatePhase(ph.id, { title: e.target.value })}
+                    onKeyDown={(e) => onPhaseTitleKey(e, ph)}
+                  />
+                  <input
+                    className="gm-phase-dur"
+                    value={ph.duration}
+                    placeholder="duration"
+                    title="How long this phase should take, e.g. 2 weeks"
+                    tabIndex={-1}
+                    onChange={(e) => updatePhase(ph.id, { duration: e.target.value })}
+                  />
+                  <div className="gm-phase-actions">
+                    <button className="gm-icon-btn" tabIndex={-1} title={`Move up (${ALT}↑)`} disabled={pi === 0} onClick={() => movePhase(ph.id, "up")}>
+                      ↑
+                    </button>
+                    <button
+                      className="gm-icon-btn"
+                      tabIndex={-1}
+                      title={`Move down (${ALT}↓)`}
+                      disabled={pi === phases.length - 1}
+                      onClick={() => movePhase(ph.id, "down")}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      className={`gm-icon-btn${armedPhase === ph.id ? " gm-armed" : ""}`}
+                      tabIndex={-1}
+                      title="Delete phase"
+                      onClick={() => removePhase(ph.id)}
+                    >
+                      {armedPhase === ph.id ? "Delete phase?" : "×"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="gm-tasks">
+                  {ph.tasks.map((t, ti) => {
+                    const pr = PRIORITIES.find((p) => p.id === t.priority) || PRIORITIES[0];
+                    return (
+                      <div
+                        key={t.id}
+                        className={`gm-task${t.done ? " done" : ""}${dropAt?.pid === ph.id && dropAt.index === ti ? " drop-before" : ""}`}
+                        onDragOver={(e) => {
+                          if (!dragging.current) return;
+                          e.preventDefault();
+                          const r = e.currentTarget.getBoundingClientRect();
+                          const index = e.clientY > r.top + r.height / 2 ? ti + 1 : ti;
+                          if (dropAt?.pid !== ph.id || dropAt.index !== index) setDropAt({ pid: ph.id, index });
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (dragging.current && dropAt) moveTaskTo(dragging.current, dropAt);
+                          dragging.current = null;
+                          setDropAt(null);
+                        }}
+                      >
+                        <span
+                          className="gm-handle"
+                          draggable
+                          title="Drag to reorder"
+                          onDragStart={(e) => {
+                            dragging.current = { pid: ph.id, tid: t.id };
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", t.text);
+                            e.dataTransfer.setDragImage(e.currentTarget.parentElement, 12, 12);
+                          }}
+                          onDragEnd={() => {
+                            dragging.current = null;
+                            setDropAt(null);
+                          }}
+                        >
+                          ⠿
+                        </span>
+                        <button
+                          type="button"
+                          className={`gm-check${t.done ? " on" : ""}`}
+                          tabIndex={-1}
+                          aria-label={t.done ? "Mark not done" : "Mark done"}
+                          onClick={() => updateTask(ph.id, t.id, { done: !t.done })}
+                        >
+                          {t.done ? "✓" : ""}
+                        </button>
+                        <input
+                          className="gm-task-input"
+                          data-nav={`t:${t.id}`}
+                          value={t.text}
+                          placeholder="Task"
+                          onChange={(e) => updateTask(ph.id, t.id, { text: e.target.value })}
+                          onKeyDown={(e) => onTaskKey(e, ph, t, ti)}
+                          onPaste={(e) => pasteList(e, ph.id, t.id)}
+                        />
+                        <div className="gm-meta">
+                          <button
+                            type="button"
+                            className={`gm-prio${t.priority === "none" ? " none" : ""}`}
+                            style={{ color: pr.color, borderColor: pr.color }}
+                            tabIndex={-1}
+                            title={`Priority: ${pr.id} — click to change`}
+                            onClick={() => updateTask(ph.id, t.id, { priority: nextPriority(t.priority) })}
+                          >
+                            {pr.label}
+                          </button>
+                          <label className={`gm-due${t.due_date ? "" : " empty"}`} title="Due date">
+                            {t.due_date ? fmtDate(t.due_date) : "📅"}
+                            <input
+                              type="date"
+                              tabIndex={-1}
+                              value={t.due_date || ""}
+                              onClick={(e) => {
+                                try {
+                                  e.currentTarget.showPicker?.();
+                                } catch {}
+                              }}
+                              onChange={(e) => updateTask(ph.id, t.id, { due_date: e.target.value })}
+                            />
+                          </label>
+                          {t.due_date && (
+                            <button
+                              type="button"
+                              className="gm-icon-btn gm-mini"
+                              tabIndex={-1}
+                              title="Clear due date"
+                              onClick={() => updateTask(ph.id, t.id, { due_date: "" })}
+                            >
+                              ×
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="gm-icon-btn gm-del"
+                            tabIndex={-1}
+                            title="Remove task"
+                            onClick={() => removeTask(ph.id, t.id)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* "Add a task…" line: typing here creates a real task. */}
+                  <div
+                    className={`gm-task gm-add${dropAt?.pid === ph.id && dropAt.index === ph.tasks.length ? " drop-before" : ""}`}
+                    onDragOver={(e) => {
+                      if (!dragging.current) return;
+                      e.preventDefault();
+                      if (dropAt?.pid !== ph.id || dropAt.index !== ph.tasks.length) {
+                        setDropAt({ pid: ph.id, index: ph.tasks.length });
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragging.current && dropAt) moveTaskTo(dragging.current, dropAt);
+                      dragging.current = null;
+                      setDropAt(null);
+                    }}
+                  >
+                    <span className="gm-plus">+</span>
+                    <input
+                      className="gm-task-input"
+                      data-nav={`add:${ph.id}`}
+                      value=""
+                      placeholder={ph.tasks.length ? "Add a task" : "Add a task — or paste a list"}
+                      onChange={(e) => insertTask(ph.id, ph.tasks.length, blankTask(e.target.value))}
+                      onKeyDown={(e) => onAddLineKey(e, ph)}
+                      onPaste={(e) => pasteList(e, ph.id, null)}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+          {treeLoaded && (
+            <button type="button" className="gm-add-phase" onClick={addPhaseAtEnd}>
+              + Add phase
+            </button>
+          )}
+
+          <div className="gm-hints">
+            <span><kbd>↵</kbd> next task</span>
+            <span><kbd>↵</kbd> on empty line → new phase</span>
+            <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
+            <span><kbd>{ALT}↑</kbd><kbd>{ALT}↓</kbd> reorder</span>
+            <span>paste a list to add many</span>
+          </div>
         </div>
-        <div className="modal-footer">
-          <div className="modal-keyhints">
-            {[
-              ["Tab", "next field"],
-              ["Ctrl+Enter", "save"],
-              ["Ctrl+P", "add phase"],
-              ["Ctrl+T", "add task"],
-              ["Esc", "close"],
-            ].map(([k, l]) => (
-              <span key={k}>
-                <kbd>{k}</kbd>
-                {l}
+
+        {/* Footer — always visible */}
+        <div className="gm-foot">
+          {confirmDiscard ? (
+            <>
+              <span className="gm-foot-msg">Discard unsaved changes?</span>
+              <button className="gm-btn" onClick={() => setConfirmDiscard(false)}>
+                Keep editing
+              </button>
+              <button className="gm-btn gm-btn-danger" onClick={discard}>
+                Discard <kbd>Esc</kbd>
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="gm-foot-msg">
+                {phaseCount} {phaseCount === 1 ? "phase" : "phases"} · {taskCount} {taskCount === 1 ? "task" : "tasks"}
+                {isNew && dirty && <span className="gm-saved"> · draft saved</span>}
               </span>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn-cancel" onClick={onClose}>
-              Cancel
-            </button>
-            <button className="btn-save" onClick={handleSave}>
-              Save
-            </button>
-          </div>
+              <button className="gm-btn" onClick={requestClose}>
+                Cancel
+              </button>
+              <button className="gm-btn gm-btn-primary" onClick={save}>
+                {isNew ? "Create goal" : "Save"} <kbd>{MOD}↵</kbd>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

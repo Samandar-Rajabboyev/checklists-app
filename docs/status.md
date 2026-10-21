@@ -5,7 +5,9 @@ _Last updated: 2026-10-21._
 ## Working (verified locally via `npm run smoke` + browser click-through)
 
 - Google/GitHub OAuth login in production-shaped routing, logout, local dev login
-- Goals CRUD, templates (software/study/business/blank), categories, archive
+- Goals CRUD, templates (software/study/business), categories, archive
+- Keyboard-first goal editor: outliner keys, paste-a-list, drag reorder,
+  draft autosave + restore, discard confirmation, target date
 - Phases & tasks: add, edit, delete, toggle, priority, due dates, notes
 - Reordering & cross-phase moves (keyboard + drag/drop) persisted via `PUT /order`
 - Edits made in the goal modal (incl. phase/task changes) persisted

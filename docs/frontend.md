@@ -11,7 +11,7 @@ App                         auth gate; applies color scheme for all screens
    ├─ [uiMode = "classic"]  (the default look; name is historical)
    │  ├─ Home               goal grid/list/compact, filters, search, import, sign out
    │  ├─ Detail             one goal: phases/tasks, vim keymaps, drag/drop, check-ins
-   │  └─ Modal              create/edit goal incl. full phase/task editor + templates
+   │  └─ Modal              goal editor (create + edit) — see "Goal editor" below
    ├─ [uiMode = "plain"]    terminal-style alternative (toggle with `M`)
    │  └─ PlainApp           sidebar of goals + PlainContent (detail) + its own Modal
    ├─ HelpOverlay (`?`)
@@ -50,10 +50,43 @@ the same files.
 - `createChecklist`, `deleteChecklist`, `archiveChecklist`,
   `importChecklists`, `addCheckin`, `deleteCheckin` are the other entry points.
 
+## Goal editor (`components/Modal.jsx`)
+
+Used for both create and edit, from both UI modes. Designed to be typed
+through like an outliner; keep it that way when changing it.
+
+- Layout: emoji button + big title; template chips (new goals, until the
+  user edits the seeded phases); a collapsed **details** row (description,
+  category, target date, estimated days, color) shown as summary pills;
+  phases & tasks; sticky footer with counts and Cancel/Save.
+- Keys (handled on the dialog element, which **stops propagation** so the
+  window-level shortcuts in Home/Detail/plain mode never fire while it's
+  open): `Enter` in title → first phase; `Enter` in phase title → its
+  tasks; `Enter` in a task splits at the caret / makes the next task;
+  `Enter` on an empty last task or the "Add a task" line → new phase;
+  `Shift+Enter` → new phase; `Backspace` on empty → delete + focus previous;
+  `↑/↓` move between lines; `Alt+↑/↓` reorder task (hops phases at the
+  edges) or phase; `⌘/Ctrl+Enter` or `⌘/Ctrl+S` save; `Esc` close (asks
+  first if dirty; `Esc` again discards).
+- Paste a multi-line list into any task line → one task per line;
+  `# Heading` lines become phases, `[x]` keeps done state
+  (`lib/pasteList.js`, pure).
+- Tasks can also be dragged by the `⠿` handle; priority/due/delete
+  controls appear on row hover/focus (always shown on touch devices).
+- New-goal input autosaves to localStorage `goal-draft` and is offered back
+  ("Restored your unsaved draft") next time; cleared on save or discard.
+- Phase `label` "" means auto: shown and saved as `Phase <index>`.
+- Edit mode spreads the original phase/task objects so fields the editor
+  doesn't show (`notes`, `completed_at`) survive a save. If the goal's tree
+  isn't loaded, the editor omits `phases` from the payload so the sync
+  can't mistake it for "delete everything".
+- Templates live in `lib/templates.js`; styles in `styles/goalModal.js`
+  (`gm-` prefix).
+
 ## Local preferences (localStorage, `lib/storage.js`)
 
 `scheme`, `uimode` (classic|plain), `view` (grid|list|compact),
-`import-offered`, and legacy data keys `checklists-v2`/`checklists-v1`
+`import-offered`, `goal-draft`, and legacy data keys `checklists-v2`/`checklists-v1`
 (read-only now, for the import prompt).
 
 ## Keymaps
