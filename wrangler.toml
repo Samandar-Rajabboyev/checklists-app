@@ -20,5 +20,5 @@ migrations_dir = "worker/migrations"
 # Set via `wrangler secret put GOOGLE_CLIENT_SECRET` / `GITHUB_CLIENT_SECRET` (not committed).
 [vars]
 GOOGLE_CLIENT_ID = "109945548306-763jpc7nbb1c6vv5rid9qut0rsb96eu7.apps.googleusercontent.com"
-GITHUB_CLIENT_ID = ""
+GITHUB_CLIENT_ID = "Ov23liv96sbFUuQe5xNX"
 PUBLIC_URL = "https://todo.samandar.dev"
