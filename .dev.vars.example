@@ -1,0 +1,9 @@
+# Copy to .dev.vars (gitignored) for `npm run worker:dev`.
+PUBLIC_URL=http://localhost:8787
+# Enables GET /api/auth/dev — a one-click "Dev User" login on localhost.
+DEV_LOGIN=1
+# Optional: only needed to test real OAuth locally. The OAuth apps must
+# also list http://localhost:8787/api/auth/callback/<provider> as a
+# redirect URI.
+# GOOGLE_CLIENT_SECRET=
+# GITHUB_CLIENT_SECRET=

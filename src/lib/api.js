@@ -92,6 +92,14 @@ export const api = {
     return normalizeGoal(goal);
   },
 
+  reorder: async (goalId, phases) => {
+    const { goal } = await request(`/goals/${goalId}/order`, {
+      method: "PUT",
+      body: JSON.stringify({ phases }),
+    });
+    return normalizeGoal(goal);
+  },
+
   addCheckin: async (goalId, note) => {
     const { goal } = await request(`/goals/${goalId}/checkins`, {
       method: "POST",

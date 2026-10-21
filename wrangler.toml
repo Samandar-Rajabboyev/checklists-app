@@ -6,6 +6,10 @@ compatibility_date = "2026-10-20"
 directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
+# Without this, browser *navigations* to /api/* (the OAuth login links and
+# the provider's redirect back to /api/auth/callback/*) are answered by the
+# SPA fallback with index.html and never reach the Worker.
+run_worker_first = ["/api/*"]
 
 [[routes]]
 pattern = "todo.samandar.dev"

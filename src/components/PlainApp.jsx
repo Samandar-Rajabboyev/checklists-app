@@ -17,6 +17,8 @@ export function PlainApp({
   scheme,
   onCycleScheme,
   selectChecklist,
+  user,
+  onLogout,
 }) {
   const [activeId, setActiveId] = useState(checklists[0]?.id || null);
 
@@ -48,7 +50,7 @@ export function PlainApp({
     setActiveId(checklists[idx - 1]?.id || checklists[idx + 1]?.id || null);
   };
   const handleArchive = () => {
-    if (active) onSave({ ...active, archived: !active.archived });
+    if (active) onArchive(active.id);
   };
 
   // ── Sidebar keyboard nav ────────────────────────────────────────────────────
@@ -178,6 +180,17 @@ export function PlainApp({
         })}
         <div className="plain-sidebar-new">
           <button onClick={() => setModal("new")}>+ new</button>
+          {onLogout && (
+            <button
+              title={user?.email || user?.name || ""}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLogout();
+              }}
+            >
+              sign out
+            </button>
+          )}
         </div>
         <KeyHintBar
           mode={focusArea === "sidebar" ? "SIDEBAR" : "--"}

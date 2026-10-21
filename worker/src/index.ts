@@ -10,6 +10,11 @@ app.route("/api/auth", authRoutes);
 app.route("/api/goals", goalsRoutes);
 app.route("/api/import", importRoutes);
 
+app.onError((err, c) => {
+  console.error(err);
+  return c.json({ error: "internal error" }, 500);
+});
+
 app.notFound((c) => {
   if (c.req.path.startsWith("/api/")) return c.json({ error: "not found" }, 404);
   return c.env.ASSETS.fetch(c.req.raw);

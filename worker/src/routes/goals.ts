@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Env, SessionUser } from "../types";
 import { requireAuth } from "../middleware";
-import { newId } from "../id";
+import { newId, pickId } from "../id";
 
 type Vars = { user: SessionUser };
 const goals = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -98,9 +98,10 @@ goals.post("/", async (c) => {
   if (!title) return c.json({ error: "title is required" }, 400);
 
   const category = CATEGORIES.includes(body.category) ? body.category : "custom";
-  const id = newId();
+  const id = pickId(body.id);
   const ts = nowIso();
-  await c.env.DB.prepare(
+  const stmts: D1PreparedStatement[] = [];
+  stmts.push(c.env.DB.prepare(
     `INSERT INTO goals (id, user_id, title, description, emoji, color, category, target_date, total_days, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
@@ -116,32 +117,44 @@ goals.post("/", async (c) => {
       body.total_days ?? null,
       ts,
       ts,
-    )
-    .run();
+    ));
 
-  // phases + tasks (optional, for template/modal-driven creation)
+  // phases + tasks (optional, for template/modal-driven creation). Batched
+  // so a goal is created atomically with its whole tree.
   const phases = Array.isArray(body.phases) ? body.phases : [];
   for (let pi = 0; pi < phases.length; pi++) {
     const ph = phases[pi];
-    const phaseId = newId();
-    await c.env.DB.prepare(
-      `INSERT INTO phases (id, goal_id, label, title, duration, target_date, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(phaseId, id, ph.label ?? `Phase ${pi}`, ph.title ?? "", ph.duration ?? "", ph.target_date ?? null, pi)
-      .run();
+    const phaseId = pickId(ph.id);
+    stmts.push(
+      c.env.DB.prepare(
+        `INSERT INTO phases (id, goal_id, label, title, duration, target_date, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(phaseId, id, ph.label ?? `Phase ${pi}`, ph.title ?? "", ph.duration ?? "", ph.target_date ?? null, pi),
+    );
 
     const tasks = Array.isArray(ph.tasks) ? ph.tasks : [];
     for (let ti = 0; ti < tasks.length; ti++) {
       const t = tasks[ti];
-      await c.env.DB.prepare(
-        `INSERT INTO tasks (id, phase_id, text, tag, priority, due_date, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-        .bind(newId(), phaseId, t.text ?? "", t.tag ?? "", PRIORITIES.includes(t.priority) ? t.priority : "none", t.due_date ?? null, ti)
-        .run();
+      stmts.push(
+        c.env.DB.prepare(
+          `INSERT INTO tasks (id, phase_id, text, tag, notes, priority, due_date, done, completed_at, sort_order)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).bind(
+          pickId(t.id),
+          phaseId,
+          t.text ?? "",
+          t.tag ?? "",
+          t.notes ?? "",
+          PRIORITIES.includes(t.priority) ? t.priority : "none",
+          t.due_date || null,
+          t.done ? 1 : 0,
+          t.done ? ts : null,
+          ti,
+        ),
+      );
     }
   }
+  await c.env.DB.batch(stmts);
 
   const full = await loadGoalFull(c.env.DB, id, user.id);
   return c.json({ goal: full }, 201);
@@ -219,9 +232,9 @@ goals.post("/:goalId/phases", async (c) => {
   const countRow = await c.env.DB.prepare("SELECT COUNT(*) as n FROM phases WHERE goal_id = ?")
     .bind(goalId)
     .first<{ n: number }>();
-  const sortOrder = countRow?.n ?? 0;
+  const sortOrder = typeof body.sort_order === "number" ? body.sort_order : (countRow?.n ?? 0);
 
-  const id = newId();
+  const id = pickId(body.id);
   await c.env.DB.prepare(
     `INSERT INTO phases (id, goal_id, label, title, duration, target_date, sort_order)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -293,12 +306,12 @@ goals.post("/:goalId/phases/:phaseId/tasks", async (c) => {
   const countRow = await c.env.DB.prepare("SELECT COUNT(*) as n FROM tasks WHERE phase_id = ?")
     .bind(phaseId)
     .first<{ n: number }>();
-  const sortOrder = countRow?.n ?? 0;
+  const sortOrder = typeof body.sort_order === "number" ? body.sort_order : (countRow?.n ?? 0);
 
-  const id = newId();
+  const id = pickId(body.id);
   await c.env.DB.prepare(
-    `INSERT INTO tasks (id, phase_id, text, tag, priority, due_date, notes, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (id, phase_id, text, tag, priority, due_date, notes, done, completed_at, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -306,8 +319,10 @@ goals.post("/:goalId/phases/:phaseId/tasks", async (c) => {
       body.text ?? "",
       body.tag ?? "",
       PRIORITIES.includes(body.priority) ? body.priority : "none",
-      body.due_date ?? null,
+      body.due_date || null,
       body.notes ?? "",
+      body.done ? 1 : 0,
+      body.done ? nowIso() : null,
       sortOrder,
     )
     .run();
@@ -340,8 +355,15 @@ goals.patch("/:goalId/tasks/:taskId", async (c) => {
   if (typeof body.tag === "string") setField("tag", body.tag);
   if (typeof body.notes === "string") setField("notes", body.notes);
   if (PRIORITIES.includes(body.priority)) setField("priority", body.priority);
-  if (body.due_date === null || typeof body.due_date === "string") setField("due_date", body.due_date);
+  if (body.due_date === null || typeof body.due_date === "string") setField("due_date", body.due_date || null);
   if (typeof body.sort_order === "number") setField("sort_order", body.sort_order);
+  if (typeof body.phase_id === "string") {
+    // Moving a task between phases — target must be a phase of the same goal.
+    if (!(await assertPhaseOwned(c.env.DB, body.phase_id, goalId, user.id))) {
+      return c.json({ error: "phase not found" }, 404);
+    }
+    setField("phase_id", body.phase_id);
+  }
   if (typeof body.done === "boolean") {
     setField("done", body.done ? 1 : 0);
     setField("completed_at", body.done ? nowIso() : null);
@@ -367,6 +389,43 @@ goals.delete("/:goalId/tasks/:taskId", async (c) => {
   )
     .bind(taskId, goalId)
     .run();
+
+  const full = await loadGoalFull(c.env.DB, goalId, user.id);
+  return c.json({ goal: full });
+});
+
+// ─── Ordering ────────────────────────────────────────────────────────────
+
+// Persists drag/drop and keyboard moves in one batch: phase order, plus
+// each task's phase and position. Body: { phases: [{ id, tasks: [taskId…] }] }.
+// Ids that don't belong to this goal are ignored by the WHERE clauses.
+goals.put("/:goalId/order", async (c) => {
+  const user = c.get("user");
+  const goalId = c.req.param("goalId");
+  if (!(await assertGoalOwned(c.env.DB, goalId, user.id))) return c.json({ error: "not found" }, 404);
+
+  const body = await c.req.json().catch(() => ({}));
+  const phases = Array.isArray(body.phases) ? body.phases : [];
+  const stmts: D1PreparedStatement[] = [];
+  phases.forEach((ph: { id?: unknown; tasks?: unknown }, pi: number) => {
+    if (typeof ph.id !== "string") return;
+    stmts.push(
+      c.env.DB.prepare("UPDATE phases SET sort_order = ? WHERE id = ? AND goal_id = ?").bind(pi, ph.id, goalId),
+    );
+    const taskIds = Array.isArray(ph.tasks) ? ph.tasks : [];
+    taskIds.forEach((tid: unknown, ti: number) => {
+      if (typeof tid !== "string") return;
+      stmts.push(
+        c.env.DB.prepare(
+          `UPDATE tasks SET phase_id = ?1, sort_order = ?2
+           WHERE id = ?3
+             AND phase_id IN (SELECT id FROM phases WHERE goal_id = ?4)
+             AND ?1 IN (SELECT id FROM phases WHERE goal_id = ?4)`,
+        ).bind(ph.id, ti, tid, goalId),
+      );
+    });
+  });
+  if (stmts.length > 0) await c.env.DB.batch(stmts);
 
   const full = await loadGoalFull(c.env.DB, goalId, user.id);
   return c.json({ goal: full });

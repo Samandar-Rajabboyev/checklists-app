@@ -369,5 +369,7 @@ export const styles = `
   .login-logo { font-size:2rem; color:var(--accent); margin-bottom:14px; }
   .login-tagline { color:var(--text-muted); font-size:0.78rem; line-height:1.6; margin-bottom:28px; }
   .login-btn { display:block; width:100%; text-align:center; text-decoration:none; margin-bottom:10px; box-sizing:border-box; }
+  .login-error { color:#D4522A; font-size:0.75rem; margin-bottom:16px; }
+  .sync-toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:1000; max-width:calc(100vw - 32px); background:var(--text); color:var(--bg); padding:10px 16px; border-radius:6px; font-size:0.75rem; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,0.25); }
   .login-loading { min-height:100vh; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:0.78rem; }
 `;

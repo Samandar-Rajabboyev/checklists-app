@@ -17,7 +17,9 @@ export const ls = {
   },
 };
 
-export const uid = () => Math.random().toString(36).slice(2, 10);
+// Client-generated ids are sent to the API on create (see worker/src/id.ts
+// pickId), so they must be globally unique — not just unique per session.
+export const uid = () => crypto.randomUUID();
 
 export const loadMode = () => {
   const m = ls.get("uimode");

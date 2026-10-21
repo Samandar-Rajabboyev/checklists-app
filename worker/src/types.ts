@@ -6,6 +6,8 @@ export interface Env {
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   PUBLIC_URL: string;
+  // Set to "1" in .dev.vars only. Enables GET /api/auth/dev (localhost only).
+  DEV_LOGIN?: string;
 }
 
 export type Provider = "google" | "github";

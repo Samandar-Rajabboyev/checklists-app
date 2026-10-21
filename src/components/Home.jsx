@@ -37,6 +37,8 @@ export function Home({
   onCycleScheme,
   uiMode,
   onToggleMode,
+  user,
+  onLogout,
 }) {
   const [focusIdx, setFocusIdx] = useState(0);
   const [view, setView] = useState(loadView);
@@ -257,6 +259,18 @@ export function Home({
           <button className="topbar-new-btn" onClick={onNew}>
             + New
           </button>
+          {onLogout && (
+            <>
+              <div className="topbar-divider" />
+              <button
+                className="topbar-import-btn"
+                onClick={onLogout}
+                title={`Signed in as ${user?.email || user?.name || "unknown"}`}
+              >
+                Sign out
+              </button>
+            </>
+          )}
         </div>
       </div>
 

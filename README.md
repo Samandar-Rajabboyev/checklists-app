@@ -19,9 +19,21 @@ npm run dev
 Full stack (frontend + Worker API + local D1), via Wrangler:
 
 ```bash
+cp .dev.vars.example .dev.vars   # first time only
+npm run db:migrate:local         # first time / after new migrations
 npm run build
-npm run worker:dev
+npm run worker:dev               # http://localhost:8787 — use "Dev login (local only)"
 ```
+
+Checks (smoke test needs `worker:dev` running):
+
+```bash
+npm run typecheck
+npm run smoke
+```
+
+More docs — architecture, API, auth, frontend sync model, status — live in
+[`docs/`](docs/); [`CLAUDE.md`](CLAUDE.md) is the entry point for coding agents.
 
 ## Database migrations
 

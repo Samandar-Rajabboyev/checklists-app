@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { SCHEMES, applyScheme } from "./constants.js";
 import {
+  ls,
   loadData,
   loadScheme,
   saveScheme,
   loadMode,
   saveMode,
 } from "./lib/storage.js";
-import { api } from "./lib/api.js";
 import { useAuth } from "./hooks/useAuth.js";
 import { useGoals } from "./hooks/useGoals.js";
 import { styles } from "./styles/classic.js";
@@ -22,7 +22,13 @@ import { Login } from "./components/Login.jsx";
 // ──── App Root ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
+
+  // Applied here (not just in AuthedApp) so the login and loading screens
+  // get the theme's CSS variables too.
+  useEffect(() => {
+    applyScheme(loadScheme());
+  }, []);
 
   return (
     <>
@@ -30,7 +36,7 @@ export default function App() {
       {authLoading ? (
         <div className="login-loading">loading…</div>
       ) : user ? (
-        <AuthedApp />
+        <AuthedApp user={user} onLogout={logout} />
       ) : (
         <Login />
       )}
@@ -38,9 +44,14 @@ export default function App() {
   );
 }
 
-function AuthedApp() {
+function AuthedApp({ user, onLogout }) {
   const {
     checklists,
+    loading,
+    loadError,
+    syncError,
+    clearSyncError,
+    reload,
     createChecklist,
     updateChecklist,
     changeChecklist,
@@ -48,7 +59,8 @@ function AuthedApp() {
     archiveChecklist,
     importChecklists,
     selectChecklist,
-    replaceOne,
+    addCheckin,
+    deleteCheckin,
   } = useGoals();
   const [view, setView] = useState("home");
   const [activeId, setActiveId] = useState(null);
@@ -61,21 +73,29 @@ function AuthedApp() {
   // First login after the localStorage-only era: if there's legacy local
   // data and the account has no goals yet, offer to bring it over once.
   useEffect(() => {
+    if (loading || loadError) return;
     const legacy = loadData();
-    const alreadyOffered = sessionStorage.getItem("import-offered");
+    const alreadyOffered = ls.get("import-offered");
     if (legacy.length > 0 && checklists.length === 0 && !alreadyOffered) {
       setImportPrompt(true);
     }
-  }, [checklists.length]);
+  }, [loading, loadError, checklists.length]);
+
+  // Auto-dismiss the sync error toast.
+  useEffect(() => {
+    if (!syncError) return;
+    const t = setTimeout(clearSyncError, 5000);
+    return () => clearTimeout(t);
+  }, [syncError, clearSyncError]);
 
   const handleImportLegacy = async () => {
-    sessionStorage.setItem("import-offered", "1");
+    ls.set("import-offered", "1");
     setImportPrompt(false);
     const legacy = loadData();
-    await importChecklists(legacy);
+    await importChecklists(legacy).catch(() => {});
   };
   const dismissImportPrompt = () => {
-    sessionStorage.setItem("import-offered", "1");
+    ls.set("import-offered", "1");
     setImportPrompt(false);
   };
 
@@ -141,14 +161,14 @@ function AuthedApp() {
     setActiveId(null);
   };
   const handleSave = async (data) => {
-    if (modal === "new") {
-      const created = await createChecklist(data);
-      setActiveId(created.id);
-    } else {
-      await updateChecklist(data);
-      setActiveId(data.id);
-    }
+    const isNew = modal === "new";
     setModal(null);
+    if (isNew) {
+      const created = await createChecklist(data).catch(() => null);
+      if (created) handleSelect(created.id);
+    } else {
+      updateChecklist(data);
+    }
   };
   const handleDelete = async () => {
     await deleteChecklist(activeId);
@@ -156,8 +176,10 @@ function AuthedApp() {
     setActiveId(null);
   };
   const handleArchive = () => archiveChecklist(activeId);
-  const handleExport = () => {
-    const cl = checklists.find((c) => c.id === activeId);
+  // Detail passes the click event; PlainContent passes the goal id.
+  const handleExport = (id) => {
+    const goalId = typeof id === "string" ? id : activeId;
+    const cl = checklists.find((c) => c.id === goalId);
     if (!cl) return;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(
@@ -166,21 +188,36 @@ function AuthedApp() {
     a.download = `${cl.title.replace(/\s+/g, "-").toLowerCase()}.json`;
     a.click();
   };
-  const handleImport = (items) => importChecklists(items);
-  const handleAddCheckin = async (goalId, note) => {
-    const saved = await api.addCheckin(goalId, note);
-    replaceOne(saved);
-  };
-  const handleDeleteCheckin = async (goalId, checkinId) => {
-    const saved = await api.deleteCheckin(goalId, checkinId);
-    replaceOne(saved);
-  };
+  const handleImport = (items) => importChecklists(items).catch(() => {});
+  const toggleMode = () =>
+    setUiMode((m) => {
+      const n = m === "plain" ? "classic" : "plain";
+      saveMode(n);
+      return n;
+    });
 
   const active = checklists.find((cl) => cl.id === activeId);
+
+  if (loadError) {
+    return (
+      <div className="login-loading" style={{ flexDirection: "column", gap: 12 }}>
+        <div>Couldn't load your goals: {loadError}</div>
+        <button className="btn btn-muted" onClick={reload}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+  if (loading) return <div className="login-loading">loading…</div>;
 
   return (
     <>
       {uiMode === "plain" && <style>{plainStyles}</style>}
+      {syncError && (
+        <div className="sync-toast" onClick={clearSyncError}>
+          Couldn't save: {syncError}
+        </div>
+      )}
       {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
       {importPrompt && (
         <div className="modal-overlay">
@@ -217,15 +254,11 @@ function AuthedApp() {
           onExport={handleExport}
           onImport={handleImport}
           selectChecklist={selectChecklist}
-          onToggleMode={() =>
-            setUiMode((m) => {
-              const n = m === "plain" ? "classic" : "plain";
-              saveMode(n);
-              return n;
-            })
-          }
+          onToggleMode={toggleMode}
           scheme={scheme}
           onCycleScheme={cycleScheme}
+          user={user}
+          onLogout={onLogout}
         />
       ) : view === "home" ? (
         <Home
@@ -236,13 +269,9 @@ function AuthedApp() {
           scheme={scheme}
           onCycleScheme={cycleScheme}
           uiMode={uiMode}
-          onToggleMode={() =>
-            setUiMode((m) => {
-              const n = m === "plain" ? "classic" : "plain";
-              saveMode(n);
-              return n;
-            })
-          }
+          onToggleMode={toggleMode}
+          user={user}
+          onLogout={onLogout}
         />
       ) : active?.phases ? (
         <Detail
@@ -255,10 +284,12 @@ function AuthedApp() {
           onExport={handleExport}
           modalOpen={!!modal}
           uiMode={uiMode}
-          onAddCheckin={handleAddCheckin}
-          onDeleteCheckin={handleDeleteCheckin}
+          onAddCheckin={addCheckin}
+          onDeleteCheckin={deleteCheckin}
         />
-      ) : null}
+      ) : (
+        <div className="login-loading">loading…</div>
+      )}
       {modal && (
         <Modal
           initial={modal === "edit" ? active : null}

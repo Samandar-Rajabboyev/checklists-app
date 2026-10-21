@@ -18,7 +18,7 @@ export const plainStyles = `
   body.plain .plain-sidebar-item.focused { color: var(--text); background: var(--bg-hover); outline: none; }
   body.plain .plain-sidebar-item .si-icon { flex-shrink: 0; font-size: 0.7rem; opacity: 0.5; }
   body.plain .plain-sidebar-item .si-progress { font-size: 0.62rem; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
-  body.plain .plain-sidebar-new { padding: 8px 16px 0; border-top: 1px solid var(--border); margin-top: 8px; }
+  body.plain .plain-sidebar-new { padding: 8px 16px 0; border-top: 1px solid var(--border); margin-top: 8px; display: flex; justify-content: space-between; }
   body.plain .plain-sidebar-new button { background: none; border: none; color: var(--text-muted); font-size: 0.72rem; cursor: pointer; padding: 0; }
   body.plain .plain-sidebar-new button:hover { color: var(--text); }
 
